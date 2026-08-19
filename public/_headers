@@ -1,0 +1,13 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+/nira-kova.mp3
+  Cache-Control: public, max-age=604800
+
+/*.jpeg
+  Cache-Control: public, max-age=2592000
+
+/og.png
+  Cache-Control: public, max-age=2592000

@@ -48,6 +48,8 @@ export default function Experience() {
       await primeAudio();
       await audioRef.current?.play();
       setPlaying(true);
+    } catch {
+      setPlaying(false);
     } finally {
       setStarted(true);
     }
@@ -248,7 +250,9 @@ export default function Experience() {
         if (started) ripplesRef.current.push({ x: event.clientX, y: event.clientY, life: 1 });
       }}
     >
-      <audio ref={audioRef} src="/nira-kova.mp3" preload="metadata" playsInline />
+      {/* This is a music-only track with no spoken dialogue to caption. */}
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <audio ref={audioRef} src="/nira-kova.mp3" preload="metadata" aria-label="Your Heart Gives You Away by Nira Kova" />
       <div className="wide-memory" aria-hidden="true" />
       <div className="portrait portrait-base" aria-hidden="true" />
       <div className="portrait portrait-red" aria-hidden="true" />
@@ -285,6 +289,7 @@ export default function Experience() {
       <section className="transport" aria-label="Audio controls">
         <button className="play-toggle" type="button" onClick={togglePlayback} aria-label={playing ? "Pause" : "Play"}><span className={playing ? "pause-icon" : "play-icon"} /></button>
         <div className="timeline-wrap">
+          <div className="track-row"><strong>Your Heart Gives You Away</strong><span>Demo 001</span></div>
           <div className="time-row"><span>{formatTime(progress)}</span><span>{formatTime(duration)}</span></div>
           <input className="timeline" type="range" min="0" max={duration || TRACK_LENGTH} step="0.01" value={Math.min(progress, duration || TRACK_LENGTH)} aria-label="Track position" style={{ "--played": `${(progress / Math.max(duration, 1)) * 100}%` } as CSSProperties} onChange={(event) => { const next = Number(event.target.value); if (audioRef.current) audioRef.current.currentTime = next; setProgress(next); }} />
         </div>
