@@ -181,15 +181,37 @@ button:focus-visible, input:focus-visible { outline: 1px solid #f1798c; outline-
 }
 .eyebrow span { width: 2.5rem; height: 1px; background: linear-gradient(90deg, var(--blood), transparent); box-shadow: 0 0 8px #d52643; }
 
-h1 {
+.artist-wordmark {
+  position: relative;
+  width: min(58rem, 62vw);
+  height: clamp(5.4rem, 10.7vw, 9.6rem);
   margin: 0;
-  font: 400 clamp(5.5rem, 11.5vw, 11.8rem)/.68 Georgia, 'Times New Roman', serif;
-  letter-spacing: -.085em;
-  color: #f4ebe5;
-  text-shadow: 0 10px 45px rgba(0,0,0,.8), 0 0 calc(45px + var(--bass) * 90px) rgba(182,15,45,.2);
+  overflow: hidden;
+  filter: drop-shadow(0 10px 35px rgba(0,0,0,.82)) drop-shadow(0 0 calc(22px + var(--bass) * 55px) rgba(194,22,52,.22));
 }
-.name-line { display: block; transition: transform .14s linear; }
-.name-indent { margin-left: .54em; font-style: italic; color: #d9c7c1; transform: translateX(calc(var(--bass) * 13px)); }
+.wordmark-image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 110%;
+  max-width: none;
+  height: auto;
+  transform: translate(-50%, -50%) scale(calc(1 + var(--bass) * .018));
+  mix-blend-mode: screen;
+  filter: brightness(1.12) sepia(.08) saturate(.82);
+  user-select: none;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .enter {
   display: flex;
@@ -306,8 +328,8 @@ h1 {
   .portrait-shade { background: linear-gradient(0deg, #040304 2%, rgba(4,3,4,.75) 25%, transparent 60%), linear-gradient(90deg, rgba(4,3,4,.68), transparent 58%); }
   .wide-memory { background-position: 39% center; }
   .hero { left: 1.6rem; right: 1.6rem; top: auto; bottom: 14.5vh; transform: none; }
-  h1 { font-size: clamp(5rem, 26vw, 8.2rem); line-height: .69; }
-  .name-indent { margin-left: .36em; }
+  .artist-wordmark { width: 100%; height: clamp(4.7rem, 22vw, 6.4rem); }
+  .wordmark-image { width: 118%; }
   .eyebrow { margin-left: .2rem; }
   .enter { margin-top: 2.3rem; margin-left: .2rem; }
   .is-started .hero { transform: scale(1.1); }
