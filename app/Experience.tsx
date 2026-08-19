@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import wordmarkUrl from "../Misc/nirakova-logo.png";
 
 type Ripple = { x: number; y: number; life: number };
 type Particle = { a: number; r: number; speed: number; size: number; drift: number };
@@ -279,7 +278,10 @@ export default function Experience() {
         <p className="eyebrow"><span /> Enter the frequency</p>
         <h1 id="artist-name" className="artist-wordmark">
           <span className="visually-hidden">Nira Kova</span>
-          <img className="wordmark-image" src={wordmarkUrl} alt="" aria-hidden="true" />
+          <span className="wordmark-text" aria-hidden="true">
+            <span className="wordmark-segment">Nira</span>
+            <span className="wordmark-segment">Kova</span>
+          </span>
         </h1>
         <button className="enter" type="button" onClick={enter} aria-label="Start the Nira Kova experience">
           <span className="enter-ring"><i /></span>

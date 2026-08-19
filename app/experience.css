@@ -183,23 +183,37 @@ button:focus-visible, input:focus-visible { outline: 1px solid #f1798c; outline-
 
 .artist-wordmark {
   position: relative;
-  width: min(58rem, 62vw);
-  height: clamp(5.4rem, 10.7vw, 9.6rem);
+  width: max-content;
+  max-width: 64vw;
   margin: 0;
-  overflow: hidden;
   filter: drop-shadow(0 10px 35px rgba(0,0,0,.82)) drop-shadow(0 0 calc(22px + var(--bass) * 55px) rgba(194,22,52,.22));
 }
-.wordmark-image {
+.wordmark-text {
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(1.25rem, 2.7vw, 3rem);
+  color: #f2ece8;
+  font: 200 clamp(3.5rem, 6.2vw, 7.2rem)/.9 "Avenir Next", "Helvetica Neue", "Century Gothic", Arial, sans-serif;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  transform: scale(calc(1 + var(--bass) * .018));
+  transform-origin: left center;
+}
+.wordmark-segment {
+  position: relative;
+  display: block;
+  padding-bottom: .34em;
+  white-space: nowrap;
+}
+.wordmark-segment::after {
+  content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 110%;
-  max-width: none;
-  height: auto;
-  transform: translate(-50%, -50%) scale(calc(1 + var(--bass) * .018));
-  mix-blend-mode: screen;
-  filter: brightness(1.12) sepia(.08) saturate(.82);
-  user-select: none;
+  right: .18em;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(245,238,232,.9), rgba(196,152,158,.52));
+  box-shadow: 0 0 calc(5px + var(--bass) * 14px) rgba(227,45,77,.42);
 }
 .visually-hidden {
   position: absolute;
@@ -328,8 +342,8 @@ button:focus-visible, input:focus-visible { outline: 1px solid #f1798c; outline-
   .portrait-shade { background: linear-gradient(0deg, #040304 2%, rgba(4,3,4,.75) 25%, transparent 60%), linear-gradient(90deg, rgba(4,3,4,.68), transparent 58%); }
   .wide-memory { background-position: 39% center; }
   .hero { left: 1.6rem; right: 1.6rem; top: auto; bottom: 14.5vh; transform: none; }
-  .artist-wordmark { width: 100%; height: clamp(4.7rem, 22vw, 6.4rem); }
-  .wordmark-image { width: 118%; }
+  .artist-wordmark { width: 100%; max-width: none; }
+  .wordmark-text { width: 100%; justify-content: space-between; gap: .7rem; font-size: clamp(2.35rem, 12.2vw, 4rem); letter-spacing: .08em; }
   .eyebrow { margin-left: .2rem; }
   .enter { margin-top: 2.3rem; margin-left: .2rem; }
   .is-started .hero { transform: scale(1.1); }
