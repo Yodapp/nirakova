@@ -351,21 +351,16 @@ export default function Experience() {
 
       <header className="topbar">
         <div className="monogram" aria-label="Nira Kova">NK</div>
-        <div className="signal-status"><span className="live-dot" /><span>{started ? (playing ? "Live signal" : "Signal held") : "System dormant"}</span><b>48.0 kHz</b></div>
       </header>
-      <div className="edge-copy edge-left" aria-hidden="true">Immersive audio / 001</div>
-      <div className="edge-copy edge-right" aria-hidden="true">Move · touch · feel</div>
       <i className="corner corner-tl" aria-hidden="true" /><i className="corner corner-tr" aria-hidden="true" />
       <i className="corner corner-bl" aria-hidden="true" /><i className="corner corner-br" aria-hidden="true" />
 
       <section className="hero" aria-labelledby="artist-name">
-        <p className="eyebrow"><span /> Enter the frequency</p>
         <h1 id="artist-name" className="artist-wordmark" aria-label="Nira Kova">
           <span className="wm one" aria-hidden="true">Nira</span>
           <span className="wm two" aria-hidden="true">Kova</span>
         </h1>
         <p className="hero-track">Meet Me in the Deep <span>— Debut single</span></p>
-        <p className="hero-blurb">The first signal from a new voice in dark electronic pop. Follow along as the album surfaces, one song at a time.</p>
         <button className="enter" type="button" onClick={enter} aria-label="Tap to experience Nira Kova">
           <span className="enter-ring"><i /></span>
           <span className="enter-copy"><b>Tap to Experience</b><small>Sound on · Headphones recommended</small></span>
