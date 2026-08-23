@@ -32,6 +32,7 @@ export default function Experience() {
   const [started, setStarted] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [repeat, setRepeat] = useState(true);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
 
@@ -147,6 +148,8 @@ export default function Experience() {
     const bassHistory = Array.from({ length: 42 }, () => 0.12);
     let lastBeat = 0;
     let lastHighFlash = 0;
+    const barCount = 40;
+    const barLevels = new Float32Array(barCount);
 
     const particles: Particle[] = Array.from({ length: 190 }, (_, index) => ({
       angle: (index / 190) * Math.PI * 2 + Math.random() * 0.2,
@@ -172,36 +175,59 @@ export default function Experience() {
       waveContext.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
-    const drawWaveform = (timeData: Uint8Array<ArrayBuffer> | null, bass: number, high: number, now: number) => {
+    // Real, audio-reactive bar equalizer — bottom-aligned bars with rounded
+    // caps and a crimson-to-cyan gradient, driven by actual frequency data.
+    const drawWaveform = (frequencyData: Uint8Array<ArrayBuffer> | null, bass: number, now: number) => {
       const rect = waveform.getBoundingClientRect();
       const w = rect.width;
       const h = rect.height;
       waveContext.clearRect(0, 0, w, h);
-      const gradient = waveContext.createLinearGradient(0, 0, w, 0);
-      gradient.addColorStop(0, "rgba(230,43,74,.18)");
-      gradient.addColorStop(0.55, `rgba(236,60,90,${0.52 + bass * 0.35})`);
-      gradient.addColorStop(1, `rgba(75,178,220,${0.18 + high * 0.5})`);
-      waveContext.strokeStyle = gradient;
-      waveContext.lineWidth = 1;
-      waveContext.beginPath();
-      const points = Math.max(32, Math.floor(w / 5));
-      for (let index = 0; index < points; index += 1) {
-        const x = (index / (points - 1)) * w;
-        const sample = timeData ? timeData[Math.floor((index / points) * timeData.length)] / 255 - 0.5 : Math.sin(index * 0.55 + now * 0.001) * 0.025;
-        const y = h / 2 + sample * h * (timeData ? 0.74 : 1);
-        if (index === 0) waveContext.moveTo(x, y); else waveContext.lineTo(x, y);
+
+      const gap = Math.max(1.5, w / barCount * 0.28);
+      const barWidth = w / barCount - gap;
+      const usableBins = frequencyData ? Math.floor(frequencyData.length * 0.62) : 0;
+
+      for (let index = 0; index < barCount; index += 1) {
+        let target: number;
+        if (frequencyData && usableBins > 0) {
+          // Slight log-weighting so low bars aren't dominated only by sub-bass.
+          const bin = Math.floor((index / barCount) ** 1.25 * usableBins);
+          target = frequencyData[Math.min(usableBins - 1, bin)] / 255;
+        } else {
+          target = 0.05 + Math.sin(now * 0.0018 + index * 0.4) * 0.02;
+        }
+        const level = barLevels[index];
+        barLevels[index] = level + (target - level) * (target > level ? 0.5 : 0.14);
+
+        const barHeight = Math.max(2, barLevels[index] * h * 0.94);
+        const x = index * (barWidth + gap);
+        const y = h - barHeight;
+        const radius = Math.min(barWidth / 2, 3);
+
+        const gradient = waveContext.createLinearGradient(0, h, 0, 0);
+        gradient.addColorStop(0, `rgba(230,43,74,${0.5 + bass * 0.3})`);
+        gradient.addColorStop(0.55, `rgba(236,90,110,${0.62 + bass * 0.3})`);
+        gradient.addColorStop(1, "rgba(120,196,230,.85)");
+        waveContext.fillStyle = gradient;
+
+        waveContext.beginPath();
+        waveContext.moveTo(x, h);
+        waveContext.lineTo(x, y + radius);
+        waveContext.arcTo(x, y, x + radius, y, radius);
+        waveContext.lineTo(x + barWidth - radius, y);
+        waveContext.arcTo(x + barWidth, y, x + barWidth, y + radius, radius);
+        waveContext.lineTo(x + barWidth, h);
+        waveContext.closePath();
+        waveContext.fill();
       }
-      waveContext.stroke();
     };
 
-    const readBands = (): { bands: AudioBands; frequencyData: Uint8Array<ArrayBuffer> | null; timeData: Uint8Array<ArrayBuffer> | null } => {
+    const readBands = (): { bands: AudioBands; frequencyData: Uint8Array<ArrayBuffer> | null } => {
       const analyser = analyserRef.current;
       const audio = audioRef.current;
-      if (!analyser || !audio || audio.paused) return { bands: { bass: 0.025, mids: 0.018, highs: 0.012 }, frequencyData: null, timeData: null };
+      if (!analyser || !audio || audio.paused) return { bands: { bass: 0.025, mids: 0.018, highs: 0.012 }, frequencyData: null };
       const frequencyData = new Uint8Array(analyser.frequencyBinCount);
-      const timeData = new Uint8Array(analyser.frequencyBinCount);
       analyser.getByteFrequencyData(frequencyData);
-      analyser.getByteTimeDomainData(timeData);
       const sampleRate = audioContextRef.current?.sampleRate ?? 48000;
       return {
         bands: {
@@ -210,7 +236,6 @@ export default function Experience() {
           highs: averageFrequencyRange(frequencyData, sampleRate, analyser.fftSize, 2000, 16000),
         },
         frequencyData,
-        timeData,
       };
     };
 
@@ -228,7 +253,7 @@ export default function Experience() {
         fpsFrames = 0;
       }
 
-      const { bands, frequencyData, timeData } = readBands();
+      const { bands, frequencyData } = readBands();
       smoothBass += (bands.bass - smoothBass) * (bands.bass > smoothBass ? 0.38 : 0.09);
       smoothMid += (bands.mids - smoothMid) * 0.13;
       smoothHigh += (bands.highs - smoothHigh) * 0.18;
@@ -323,7 +348,7 @@ export default function Experience() {
         return true;
       });
       context.globalCompositeOperation = "source-over";
-      drawWaveform(timeData, smoothBass, smoothHigh, now);
+      drawWaveform(frequencyData, smoothBass, now);
     };
 
     resize();
@@ -339,7 +364,7 @@ export default function Experience() {
     }}>
       {/* Music-only track; no spoken dialogue requires captions. */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <audio id="audio" ref={audioRef} src="/track.mp3" preload="metadata" loop crossOrigin="anonymous" aria-label="Meet Me in the Deep by Nira Kova" />
+      <audio id="audio" ref={audioRef} src="/track.mp3" preload="metadata" loop={repeat} crossOrigin="anonymous" aria-label="Meet Me in the Deep by Nira Kova" />
       <div className="wide-memory" aria-hidden="true" />
       <div className="portrait portrait-base" aria-hidden="true" />
       <div className="portrait-shade" aria-hidden="true" />
@@ -389,7 +414,7 @@ export default function Experience() {
         <button className="play-toggle" type="button" onClick={togglePlayback} aria-label={playing ? "Pause" : "Play"}><span className={playing ? "pause-icon" : "play-icon"} /></button>
         <div className="timeline-wrap">
           <div className="track-row"><strong>Meet Me in the Deep</strong><span>Nira Kova</span></div>
-          <canvas ref={waveformRef} className="waveform" aria-hidden="true" />
+          <canvas ref={waveformRef} className="equalizer" aria-hidden="true" />
           <div className="time-row"><span>{formatTime(progress)}</span><span>{duration ? formatTime(duration) : "—:—"}</span></div>
           <input className="timeline" type="range" min="0" max={duration || 1} step="0.01" value={Math.min(progress, duration || 1)} aria-label="Track position" style={{ "--played": `${(progress / Math.max(duration, 1)) * 100}%` } as CSSProperties} onChange={(event) => {
             const next = Number(event.target.value);
@@ -397,6 +422,9 @@ export default function Experience() {
             setProgress(next);
           }} />
         </div>
+        <button className={`repeat-toggle ${repeat ? "is-on" : ""}`} type="button" aria-pressed={repeat} aria-label={repeat ? "Turn repeat off" : "Turn repeat on"} onClick={() => setRepeat((prev) => !prev)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11a4 4 0 0 1 4 4v1m-3-3 3 3-3 3M20 17H9a4 4 0 0 1-4-4v-1m3 3-3-3 3-3" /></svg>
+        </button>
         <button className={`mute ${muted ? "is-muted" : ""}`} type="button" aria-label={muted ? "Unmute" : "Mute"} onClick={() => {
           const next = !muted;
           setMuted(next);
