@@ -143,7 +143,11 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 }
 
 /* ============ enter CTA — the main call to action, must read instantly ============ */
-.enter { display: inline-flex; align-items: center; gap: 1.2rem; margin: 2.4rem 0 0 .35rem; padding: 0; border: 0; background: transparent; cursor: none; text-align: left; transition: opacity .5s ease, transform .5s ease; }
+.enter {
+  display: inline-flex; align-items: center; gap: 1.2rem; max-height: 8rem; overflow: hidden;
+  margin: 2.4rem 0 0 .35rem; padding: 0; border: 0; background: transparent; cursor: none; text-align: left;
+  transition: opacity .5s ease, transform .5s ease, max-height .5s ease .08s, margin .5s ease .08s;
+}
 .enter-ring {
   position: relative; flex: none;
   width: clamp(4.4rem,13vw,5.4rem); height: clamp(4.4rem,13vw,5.4rem);
@@ -159,7 +163,10 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 .enter-copy b { color: #fff; font: 600 clamp(.78rem,1.6vw,.9rem)/1 "Jost",sans-serif; text-transform: uppercase; letter-spacing: .28em; text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 2px 18px rgba(0,0,0,.85); }
 .enter-copy small { color: #cbb8bb; font: 400 clamp(.6rem,1.2vw,.66rem)/1 "Jost",sans-serif; text-transform: uppercase; letter-spacing: .16em; text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 2px 14px rgba(0,0,0,.8); }
 .enter:hover .enter-ring { transform: scale(1.08); box-shadow: 0 0 0 1px rgba(255,255,255,.14), 0 14px 34px rgba(230,43,74,.5), 0 0 52px rgba(230,43,74,.5); }
-.is-started .enter { opacity: 0; transform: translateY(10px); pointer-events: none; }
+/* Once playing, the CTA doesn't just fade — it collapses out of the flow
+   entirely, so the space it held is reclaimed instead of leaving a hole
+   between the pull-quote and the follow row. */
+.is-started .enter { opacity: 0; transform: translateY(10px); pointer-events: none; max-height: 0; margin-top: 0; }
 
 /* ============ socials + follow ============ */
 .follow { margin: 2.2rem 0 .9rem .4rem; color: #b7a3a6; font: 400 .62rem/1 "Jost",sans-serif; letter-spacing: .24em; text-transform: uppercase; }
@@ -254,9 +261,14 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
   .artist-wordmark { font-size: clamp(3rem,17vw,5.6rem); letter-spacing: .12em; text-indent: .12em; }
   .hero-track { margin-top: 1rem; font-size: .68rem; letter-spacing: .16em; }
   .hero-track span { display: block; margin-left: 0; margin-top: .3rem; }
-  .hero-line { margin: .8rem 0 0 .1rem; max-width: none; font-size: 1.05rem; }
+  .hero-line { margin: .8rem 0 0 .1rem; max-width: none; font-size: 1.05rem; transition: font-size .5s ease .1s, margin .5s ease .1s; }
   .enter { margin: 1.8rem 0 0 .1rem; cursor: pointer; }
-  .follow { margin: 1.6rem 0 .8rem .15rem; font-size: .54rem; letter-spacing: .18em; }
+  .follow { margin: 1.6rem 0 .8rem .15rem; font-size: .54rem; letter-spacing: .18em; transition: margin-top .5s ease .1s; }
+  /* With the CTA gone, give the pull-quote more presence and let the
+     follow row settle further down — using the space instead of just
+     leaving it empty. */
+  .is-started .hero-line { font-size: 1.3rem; margin-top: 1.3rem; }
+  .is-started .follow { margin-top: 2.6rem; }
   .social a { cursor: pointer; }
   .lyric-cycle { margin: 1.2rem 0 0 .1rem; max-width: none; font-size: 1rem; }
   .transport { width: calc(100% - 2.4rem); bottom: max(1rem,calc(env(safe-area-inset-bottom) + .5rem)); gap: .9rem; padding: .9rem 1.1rem; }
