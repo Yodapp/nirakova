@@ -3,19 +3,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
-type Ripple = { x: number; y: number; life: number };
-type Particle = { a: number; r: number; speed: number; size: number; drift: number };
-
-const TRACK_LENGTH = 294.72;
+type Ripple = { x: number; y: number; life: number; strength: number };
+type Particle = { angle: number; radius: number; speed: number; size: number; phase: number; hue: number };
+type AudioBands = { bass: number; mids: number; highs: number };
 
 function formatTime(value: number) {
   const safe = Number.isFinite(value) ? value : 0;
   return `${Math.floor(safe / 60)}:${Math.floor(safe % 60).toString().padStart(2, "0")}`;
 }
 
+function averageFrequencyRange(data: Uint8Array<ArrayBuffer>, sampleRate: number, fftSize: number, low: number, high: number) {
+  const binWidth = sampleRate / fftSize;
+  const from = Math.max(0, Math.floor(low / binWidth));
+  const to = Math.min(data.length - 1, Math.ceil(high / binWidth));
+  let total = 0;
+  for (let index = from; index <= to; index += 1) total += data[index];
+  return total / Math.max(1, to - from + 1) / 255;
+}
+
 export default function Experience() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const waveformRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const pointerRef = useRef({ x: 0.5, y: 0.5, active: false });
@@ -24,7 +33,15 @@ export default function Experience() {
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(TRACK_LENGTH);
+  const [duration, setDuration] = useState(0);
+
+  const requestTiltAccess = useCallback(async () => {
+    type PermissionAwareOrientation = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> };
+    const Orientation = window.DeviceOrientationEvent as PermissionAwareOrientation | undefined;
+    if (Orientation?.requestPermission) {
+      try { await Orientation.requestPermission(); } catch { /* Pointer parallax remains available. */ }
+    }
+  }, []);
 
   const primeAudio = useCallback(async () => {
     const audio = audioRef.current;
@@ -32,8 +49,10 @@ export default function Experience() {
     if (!audioContextRef.current) {
       const context = new AudioContext();
       const analyser = context.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.82;
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.78;
+      analyser.minDecibels = -92;
+      analyser.maxDecibels = -18;
       const source = context.createMediaElementSource(audio);
       source.connect(analyser);
       analyser.connect(context.destination);
@@ -44,262 +63,333 @@ export default function Experience() {
   }, []);
 
   const enter = useCallback(async () => {
+    setStarted(true);
+    void requestTiltAccess();
     try {
       await primeAudio();
       await audioRef.current?.play();
-      setPlaying(true);
     } catch {
       setPlaying(false);
-    } finally {
-      setStarted(true);
     }
-  }, [primeAudio]);
+  }, [primeAudio, requestTiltAccess]);
 
   const togglePlayback = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
+    if (!started) setStarted(true);
     if (audio.paused) {
       await primeAudio();
       await audio.play();
     } else {
       audio.pause();
     }
-  }, [primeAudio]);
+  }, [primeAudio, started]);
 
-  const onPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
-    pointerRef.current = {
-      x: event.clientX / window.innerWidth,
-      y: event.clientY / window.innerHeight,
-      active: true,
-    };
+  const updatePointer = (event: ReactPointerEvent<HTMLElement>) => {
+    pointerRef.current = { x: event.clientX / window.innerWidth, y: event.clientY / window.innerHeight, active: true };
   };
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     const update = () => setProgress(audio.currentTime || 0);
-    const loaded = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : TRACK_LENGTH);
+    const loaded = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
     const played = () => setPlaying(true);
     const paused = () => setPlaying(false);
     audio.addEventListener("timeupdate", update);
     audio.addEventListener("loadedmetadata", loaded);
+    audio.addEventListener("durationchange", loaded);
     audio.addEventListener("play", played);
     audio.addEventListener("pause", paused);
-    audio.addEventListener("ended", paused);
     return () => {
       audio.removeEventListener("timeupdate", update);
       audio.removeEventListener("loadedmetadata", loaded);
+      audio.removeEventListener("durationchange", loaded);
       audio.removeEventListener("play", played);
       audio.removeEventListener("pause", paused);
-      audio.removeEventListener("ended", paused);
     };
+  }, []);
+
+  useEffect(() => {
+    const onOrientation = (event: DeviceOrientationEvent) => {
+      if (event.gamma == null || event.beta == null) return;
+      const x = Math.max(-1, Math.min(1, event.gamma / 28));
+      const y = Math.max(-1, Math.min(1, (event.beta - 45) / 38));
+      document.documentElement.style.setProperty("--tilt-x", `${(-y * 4.5).toFixed(2)}deg`);
+      document.documentElement.style.setProperty("--tilt-y", `${(x * 6).toFixed(2)}deg`);
+    };
+    window.addEventListener("deviceorientation", onOrientation, true);
+    return () => window.removeEventListener("deviceorientation", onOrientation, true);
   }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
+    const waveform = waveformRef.current;
+    const waveContext = waveform?.getContext("2d");
+    if (!canvas || !context || !waveform || !waveContext) return;
 
-    let frame = 0;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const nav = navigator as Navigator & { deviceMemory?: number };
+    const lowTier = (nav.deviceMemory ?? 4) <= 2 || (nav.hardwareConcurrency ?? 8) <= 4;
+    let particleLimit = reducedMotion ? 30 : lowTier ? 72 : window.innerWidth > 1600 ? 180 : 128;
     let width = window.innerWidth;
     let height = window.innerHeight;
+    let frame = 0;
+    let last = performance.now();
+    let fpsWindowStarted = last;
+    let fpsFrames = 0;
     let smoothBass = 0;
     let smoothMid = 0;
     let smoothHigh = 0;
-    let last = performance.now();
-    const particles: Particle[] = Array.from({ length: 130 }, (_, index) => ({
-      a: (index / 130) * Math.PI * 2 + Math.random() * 0.18,
-      r: 105 + Math.random() * Math.min(width, height) * 0.38,
-      speed: 0.00004 + Math.random() * 0.00012,
-      size: 0.35 + Math.random() * 1.65,
-      drift: Math.random() * Math.PI * 2,
+    let impact = 0;
+    let lightning = 0;
+    const bassHistory = Array.from({ length: 42 }, () => 0.12);
+    let lastBeat = 0;
+    let lastHighFlash = 0;
+
+    const particles: Particle[] = Array.from({ length: 190 }, (_, index) => ({
+      angle: (index / 190) * Math.PI * 2 + Math.random() * 0.2,
+      radius: 90 + Math.random() * Math.min(width, height) * 0.54,
+      speed: 0.000035 + Math.random() * 0.00013,
+      size: 0.3 + Math.random() * 1.8,
+      phase: Math.random() * Math.PI * 2,
+      hue: Math.random() > 0.82 ? 198 : 348,
     }));
 
     const resize = () => {
       width = window.innerWidth;
       height = window.innerHeight;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
+      const dpr = Math.min(window.devicePixelRatio || 1, lowTier ? 1.35 : 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const waveRect = waveform.getBoundingClientRect();
+      waveform.width = Math.max(1, Math.round(waveRect.width * dpr));
+      waveform.height = Math.max(1, Math.round(waveRect.height * dpr));
+      waveContext.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
-    const average = (data: Uint8Array<ArrayBuffer>, from: number, to: number) => {
-      let total = 0;
-      const end = Math.min(to, data.length);
-      for (let index = from; index < end; index += 1) total += data[index];
-      return total / Math.max(1, end - from) / 255;
+    const drawWaveform = (timeData: Uint8Array<ArrayBuffer> | null, bass: number, high: number, now: number) => {
+      const rect = waveform.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+      waveContext.clearRect(0, 0, w, h);
+      const gradient = waveContext.createLinearGradient(0, 0, w, 0);
+      gradient.addColorStop(0, "rgba(230,43,74,.18)");
+      gradient.addColorStop(0.55, `rgba(236,60,90,${0.52 + bass * 0.35})`);
+      gradient.addColorStop(1, `rgba(75,178,220,${0.18 + high * 0.5})`);
+      waveContext.strokeStyle = gradient;
+      waveContext.lineWidth = 1;
+      waveContext.beginPath();
+      const points = Math.max(32, Math.floor(w / 5));
+      for (let index = 0; index < points; index += 1) {
+        const x = (index / (points - 1)) * w;
+        const sample = timeData ? timeData[Math.floor((index / points) * timeData.length)] / 255 - 0.5 : Math.sin(index * 0.55 + now * 0.001) * 0.025;
+        const y = h / 2 + sample * h * (timeData ? 0.74 : 1);
+        if (index === 0) waveContext.moveTo(x, y); else waveContext.lineTo(x, y);
+      }
+      waveContext.stroke();
+    };
+
+    const readBands = (): { bands: AudioBands; frequencyData: Uint8Array<ArrayBuffer> | null; timeData: Uint8Array<ArrayBuffer> | null } => {
+      const analyser = analyserRef.current;
+      const audio = audioRef.current;
+      if (!analyser || !audio || audio.paused) return { bands: { bass: 0.025, mids: 0.018, highs: 0.012 }, frequencyData: null, timeData: null };
+      const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+      const timeData = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(frequencyData);
+      analyser.getByteTimeDomainData(timeData);
+      const sampleRate = audioContextRef.current?.sampleRate ?? 48000;
+      return {
+        bands: {
+          bass: averageFrequencyRange(frequencyData, sampleRate, analyser.fftSize, 20, 150),
+          mids: averageFrequencyRange(frequencyData, sampleRate, analyser.fftSize, 150, 2000),
+          highs: averageFrequencyRange(frequencyData, sampleRate, analyser.fftSize, 2000, 16000),
+        },
+        frequencyData,
+        timeData,
+      };
     };
 
     const draw = (now: number) => {
-      const delta = Math.min(now - last, 40);
+      frame = requestAnimationFrame(draw);
+      const targetFrameMs = lowTier ? 1000 / 45 : 1000 / 60;
+      if (now - last < targetFrameMs * 0.78) return;
+      const delta = Math.min(now - last, 42);
       last = now;
-      const analyser = analyserRef.current;
-      const audio = audioRef.current;
-      let bass = 0.035 + Math.sin(now * 0.0017) * 0.012;
-      let mid = 0.025;
-      let high = 0.02;
-      let data: Uint8Array<ArrayBuffer> | null = null;
-      if (analyser && started && audio && !audio.paused) {
-        data = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(data);
-        bass = average(data, 1, 15);
-        mid = average(data, 16, 90);
-        high = average(data, 91, 255);
+      fpsFrames += 1;
+      if (now - fpsWindowStarted > 2500) {
+        const fps = (fpsFrames * 1000) / (now - fpsWindowStarted);
+        if (fps < 42 && particleLimit > 48) particleLimit = Math.max(48, Math.floor(particleLimit * 0.78));
+        fpsWindowStarted = now;
+        fpsFrames = 0;
       }
-      smoothBass += (bass - smoothBass) * (bass > smoothBass ? 0.36 : 0.09);
-      smoothMid += (mid - smoothMid) * 0.12;
-      smoothHigh += (high - smoothHigh) * 0.16;
+
+      const { bands, frequencyData, timeData } = readBands();
+      smoothBass += (bands.bass - smoothBass) * (bands.bass > smoothBass ? 0.38 : 0.09);
+      smoothMid += (bands.mids - smoothMid) * 0.13;
+      smoothHigh += (bands.highs - smoothHigh) * 0.18;
+      bassHistory.push(bands.bass);
+      bassHistory.shift();
+      const meanBass = bassHistory.reduce((sum, value) => sum + value, 0) / bassHistory.length;
+      const variance = bassHistory.reduce((sum, value) => sum + (value - meanBass) ** 2, 0) / bassHistory.length;
+      const dynamicThreshold = Math.max(0.22, meanBass + Math.sqrt(variance) * 1.45);
+      if (bands.bass > dynamicThreshold && bands.bass > smoothBass * 1.04 && now - lastBeat > 185) {
+        const pointer = pointerRef.current;
+        ripplesRef.current.push({ x: (pointer.active ? pointer.x : 0.68) * width, y: (pointer.active ? pointer.y : 0.46) * height, life: 1, strength: Math.min(1.4, bands.bass * 1.65) });
+        impact = Math.min(1.4, impact + bands.bass * 1.25);
+        lastBeat = now;
+      }
+      if (bands.highs > 0.36 && now - lastHighFlash > 130 + Math.random() * 260) {
+        lightning = Math.min(1, bands.highs * 0.8);
+        lastHighFlash = now;
+      }
+      impact *= 0.86;
+      lightning *= 0.77;
 
       const pointer = pointerRef.current;
       const px = pointer.x * width;
       const py = pointer.y * height;
-      const centerX = width * (width < 760 ? 0.56 : 0.69) + (px - width / 2) * 0.035;
+      const centerX = width * (width < 760 ? 0.54 : 0.71) + (px - width / 2) * 0.04;
       const centerY = height * 0.46 + (py - height / 2) * 0.035;
       const root = document.documentElement.style;
       root.setProperty("--bass", smoothBass.toFixed(3));
       root.setProperty("--mid", smoothMid.toFixed(3));
       root.setProperty("--high", smoothHigh.toFixed(3));
+      root.setProperty("--impact", impact.toFixed(3));
+      root.setProperty("--lightning", lightning.toFixed(3));
       root.setProperty("--pointer-x", `${(pointer.x * 100).toFixed(2)}%`);
       root.setProperty("--pointer-y", `${(pointer.y * 100).toFixed(2)}%`);
-      root.setProperty("--tilt-x", `${((pointer.y - 0.5) * -5).toFixed(2)}deg`);
-      root.setProperty("--tilt-y", `${((pointer.x - 0.5) * 7).toFixed(2)}deg`);
+      if (!window.matchMedia("(pointer: coarse)").matches) {
+        root.setProperty("--tilt-x", `${((pointer.y - 0.5) * -4.5).toFixed(2)}deg`);
+        root.setProperty("--tilt-y", `${((pointer.x - 0.5) * 6).toFixed(2)}deg`);
+      }
 
       context.clearRect(0, 0, width, height);
       context.globalCompositeOperation = "lighter";
-      const glow = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, 170 + smoothBass * 280);
-      glow.addColorStop(0, `rgba(255,51,82,${0.025 + smoothBass * 0.18})`);
-      glow.addColorStop(0.25, `rgba(195,14,46,${0.018 + smoothBass * 0.11})`);
-      glow.addColorStop(1, "rgba(80,0,18,0)");
+      const glow = context.createRadialGradient(centerX, centerY, 0, centerX, centerY, 150 + smoothBass * 340);
+      glow.addColorStop(0, `rgba(255,42,78,${0.025 + smoothBass * 0.19})`);
+      glow.addColorStop(0.35, `rgba(151,8,38,${0.018 + smoothBass * 0.1})`);
+      glow.addColorStop(1, "rgba(70,0,20,0)");
       context.fillStyle = glow;
       context.fillRect(0, 0, width, height);
 
-      for (let ring = 0; ring < 5; ring += 1) {
-        context.beginPath();
-        context.arc(centerX, centerY, 100 + ring * 49 + smoothBass * (50 + ring * 13), -Math.PI * 0.92, Math.PI * 0.92);
-        context.lineWidth = ring === 0 ? 1.3 + smoothBass * 3 : 0.45;
-        context.strokeStyle = `rgba(239,49,80,${Math.max(0.035, 0.2 - ring * 0.032 + smoothBass * 0.22)})`;
-        context.stroke();
-      }
-
-      if (data) {
-        const bars = width < 700 ? 72 : 118;
+      if (frequencyData) {
+        const bars = width < 700 ? 68 : 112;
         for (let index = 0; index < bars; index += 1) {
-          const value = data[3 + Math.floor((index / bars) * 160)] / 255;
+          const value = frequencyData[2 + Math.floor((index / bars) * 150)] / 255;
           const angle = (index / bars) * Math.PI * 2 - Math.PI / 2;
-          const base = 116 + smoothBass * 35;
+          const base = 106 + smoothBass * 42;
           context.beginPath();
           context.moveTo(centerX + Math.cos(angle) * base, centerY + Math.sin(angle) * base);
-          context.lineTo(centerX + Math.cos(angle) * (base + 4 + value * 72), centerY + Math.sin(angle) * (base + 4 + value * 72));
-          context.lineWidth = 0.45 + value * 1.5;
-          context.strokeStyle = `rgba(255,${35 + value * 50},${62 + value * 55},${0.08 + value * 0.48})`;
+          context.lineTo(centerX + Math.cos(angle) * (base + 3 + value * 78), centerY + Math.sin(angle) * (base + 3 + value * 78));
+          context.lineWidth = 0.35 + value * 1.35;
+          context.strokeStyle = `rgba(${index % 13 === 0 ? "70,170,215" : "240,49,79"},${0.055 + value * 0.38})`;
           context.stroke();
         }
       }
 
-      for (const particle of particles) {
-        particle.a += particle.speed * delta * (1 + smoothMid * 3);
-        const radius = particle.r + Math.sin(now * 0.00045 + particle.drift) * 7 + smoothBass * 54;
-        let x = centerX + Math.cos(particle.a) * radius;
-        let y = centerY + Math.sin(particle.a) * radius * 0.64;
+      for (let index = 0; index < particleLimit; index += 1) {
+        const particle = particles[index];
+        particle.angle += particle.speed * delta * (1 + smoothMid * 4.2);
+        const radius = particle.radius + Math.sin(now * 0.00055 + particle.phase) * (8 + smoothMid * 28) + smoothBass * 48;
+        let x = centerX + Math.cos(particle.angle) * radius;
+        let y = centerY + Math.sin(particle.angle) * radius * 0.59;
         const dx = x - px;
         const dy = y - py;
         const distance = Math.hypot(dx, dy);
-        if (pointer.active && distance < 130) {
-          const force = (130 - distance) / 130;
-          x += (dx / Math.max(distance, 1)) * force * 26;
-          y += (dy / Math.max(distance, 1)) * force * 26;
+        if (pointer.active && distance < 145) {
+          const force = (145 - distance) / 145;
+          x += (dx / Math.max(distance, 1)) * force * 42;
+          y += (dy / Math.max(distance, 1)) * force * 42;
         }
         context.beginPath();
-        context.arc(x, y, particle.size * (1 + smoothHigh * 1.8), 0, Math.PI * 2);
-        context.fillStyle = `rgba(248,${80 + smoothMid * 100},${105 + smoothHigh * 120},${0.14 + smoothHigh * 0.42})`;
+        context.arc(x, y, particle.size * (1 + smoothHigh * 2.4), 0, Math.PI * 2);
+        context.fillStyle = particle.hue === 198 ? `rgba(54,160,211,${0.06 + smoothHigh * 0.3})` : `rgba(245,66,96,${0.08 + smoothHigh * 0.38})`;
         context.fill();
       }
 
       ripplesRef.current = ripplesRef.current.filter((ripple) => {
-        ripple.life -= 0.018;
+        ripple.life -= delta * 0.00072;
         if (ripple.life <= 0) return false;
         context.beginPath();
-        context.arc(ripple.x, ripple.y, (1 - ripple.life) * (170 + smoothBass * 180), 0, Math.PI * 2);
-        context.strokeStyle = `rgba(255,54,88,${ripple.life * 0.5})`;
-        context.lineWidth = 0.7 + ripple.life * 2.2;
+        context.arc(ripple.x, ripple.y, (1 - ripple.life) * (180 + ripple.strength * 160), 0, Math.PI * 2);
+        context.strokeStyle = `rgba(242,48,82,${ripple.life * 0.48})`;
+        context.lineWidth = 0.45 + ripple.life * ripple.strength * 2.4;
         context.stroke();
         return true;
       });
       context.globalCompositeOperation = "source-over";
-      frame = requestAnimationFrame(draw);
+      drawWaveform(timeData, smoothBass, smoothHigh, now);
     };
 
     resize();
     window.addEventListener("resize", resize);
     frame = requestAnimationFrame(draw);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", resize);
-    };
-  }, [started]);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", resize); };
+  }, []);
 
   return (
-    <main
-      className={`experience ${started ? "is-started" : "is-dormant"} ${playing ? "is-playing" : "is-paused"}`}
-      onPointerMove={onPointerMove}
-      onPointerLeave={() => { pointerRef.current.active = false; }}
-      onPointerDown={(event) => {
-        if (started) ripplesRef.current.push({ x: event.clientX, y: event.clientY, life: 1 });
-      }}
-    >
-      {/* This is a music-only track with no spoken dialogue to caption. */}
+    <main className={`experience ${started ? "is-started" : "is-dormant"} ${playing ? "is-playing" : "is-paused"}`} onPointerMove={updatePointer} onPointerLeave={() => { pointerRef.current.active = false; }} onPointerDown={(event) => {
+      updatePointer(event);
+      if (started) ripplesRef.current.push({ x: event.clientX, y: event.clientY, life: 1, strength: 0.9 });
+    }}>
+      {/* Music-only track; no spoken dialogue requires captions. */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <audio ref={audioRef} src="/nira-kova.mp3" preload="metadata" aria-label="Your Heart Gives You Away by Nira Kova" />
+      <audio id="audio" ref={audioRef} src="/track.mp3" preload="metadata" loop crossOrigin="anonymous" aria-label="Meet Me in the Deep by Nira Kova" />
       <div className="wide-memory" aria-hidden="true" />
       <div className="portrait portrait-base" aria-hidden="true" />
       <div className="portrait portrait-red" aria-hidden="true" />
-      <div className="portrait portrait-blue" aria-hidden="true" />
+      <div className="portrait portrait-cyan" aria-hidden="true" />
       <div className="portrait-shade" aria-hidden="true" />
       <div className="pointer-aura" aria-hidden="true" />
       <canvas ref={canvasRef} className="signal-canvas" aria-hidden="true" />
+      <div className="lightning" aria-hidden="true" />
       <div className="scanlines" aria-hidden="true" />
       <div className="grain" aria-hidden="true" />
-      <div className="bass-flash" aria-hidden="true" />
 
       <header className="topbar">
         <div className="monogram" aria-label="Nira Kova">NK</div>
-        <div className="signal-status"><span className="live-dot" /><span>{started ? (playing ? "Live signal" : "Signal held") : "System dormant"}</span><b>48.1 kHz</b></div>
+        <div className="signal-status"><span className="live-dot" /><span>{started ? (playing ? "Live signal" : "Signal held") : "System dormant"}</span><b>48.0 kHz</b></div>
       </header>
-
       <div className="edge-copy edge-left" aria-hidden="true">Immersive audio / 001</div>
       <div className="edge-copy edge-right" aria-hidden="true">Move · touch · feel</div>
-      <div className="corner corner-tl" aria-hidden="true" /><div className="corner corner-tr" aria-hidden="true" />
-      <div className="corner corner-bl" aria-hidden="true" /><div className="corner corner-br" aria-hidden="true" />
+      <i className="corner corner-tl" aria-hidden="true" /><i className="corner corner-tr" aria-hidden="true" />
+      <i className="corner corner-bl" aria-hidden="true" /><i className="corner corner-br" aria-hidden="true" />
 
       <section className="hero" aria-labelledby="artist-name">
         <p className="eyebrow"><span /> Enter the frequency</p>
-        <h1 id="artist-name" className="artist-wordmark">
-          <span className="visually-hidden">Nira Kova</span>
-          <span className="wordmark-text" aria-hidden="true">
-            <span className="wordmark-segment">Nira</span>
-            <span className="wordmark-segment">Kova</span>
-          </span>
-        </h1>
-        <button className="enter" type="button" onClick={enter} aria-label="Start the Nira Kova experience">
+        <h1 id="artist-name" className="artist-wordmark" data-text="NIRA KOVA">NIRA <em>KOVA</em></h1>
+        <p className="hero-track">Meet Me in the Deep <span>— New signal</span></p>
+        <button className="enter" type="button" onClick={enter} aria-label="Tap to experience Nira Kova">
           <span className="enter-ring"><i /></span>
-          <span className="enter-copy"><b>Touch to awaken</b><small>Sound on · Headphones recommended</small></span>
+          <span className="enter-copy"><b>Tap to Experience</b><small>Sound on · Headphones recommended</small></span>
         </button>
       </section>
 
       <div className="stage-copy" aria-hidden={!started}><p>Audio becomes matter</p><span>Move to bend the field<br />Tap to release energy</span></div>
-      <div className="bass-meter" aria-hidden="true"><span>Bass pressure</span><i /><i /><i /><i /><i /><i /><i /><i /></div>
+      <div className="bass-meter" aria-hidden="true"><span>Bass pressure</span>{Array.from({ length: 10 }, (_, index) => <i key={index} />)}</div>
 
       <section className="transport" aria-label="Audio controls">
         <button className="play-toggle" type="button" onClick={togglePlayback} aria-label={playing ? "Pause" : "Play"}><span className={playing ? "pause-icon" : "play-icon"} /></button>
         <div className="timeline-wrap">
-          <div className="track-row"><strong>Your Heart Gives You Away</strong><span>Demo 001</span></div>
-          <div className="time-row"><span>{formatTime(progress)}</span><span>{formatTime(duration)}</span></div>
-          <input className="timeline" type="range" min="0" max={duration || TRACK_LENGTH} step="0.01" value={Math.min(progress, duration || TRACK_LENGTH)} aria-label="Track position" style={{ "--played": `${(progress / Math.max(duration, 1)) * 100}%` } as CSSProperties} onChange={(event) => { const next = Number(event.target.value); if (audioRef.current) audioRef.current.currentTime = next; setProgress(next); }} />
+          <div className="track-row"><strong>Meet Me in the Deep</strong><span>Nira Kova</span></div>
+          <canvas ref={waveformRef} className="waveform" aria-hidden="true" />
+          <div className="time-row"><span>{formatTime(progress)}</span><span>{duration ? formatTime(duration) : "—:—"}</span></div>
+          <input className="timeline" type="range" min="0" max={duration || 1} step="0.01" value={Math.min(progress, duration || 1)} aria-label="Track position" style={{ "--played": `${(progress / Math.max(duration, 1)) * 100}%` } as CSSProperties} onChange={(event) => {
+            const next = Number(event.target.value);
+            if (audioRef.current) audioRef.current.currentTime = next;
+            setProgress(next);
+          }} />
         </div>
-        <button className={`mute ${muted ? "is-muted" : ""}`} type="button" aria-label={muted ? "Unmute" : "Mute"} onClick={() => { const next = !muted; setMuted(next); if (audioRef.current) audioRef.current.muted = next; }}><span /><i /><i /></button>
+        <button className={`mute ${muted ? "is-muted" : ""}`} type="button" aria-label={muted ? "Unmute" : "Mute"} onClick={() => {
+          const next = !muted;
+          setMuted(next);
+          if (audioRef.current) audioRef.current.muted = next;
+        }}><span /><i /><i /></button>
       </section>
       <p className="mobile-hint">Drag to bend light · Tap for impact</p>
     </main>

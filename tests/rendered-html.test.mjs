@@ -8,16 +8,16 @@ const dist = new URL("../dist/", import.meta.url);
 test("builds the branded document metadata", async () => {
   const html = await readFile(new URL("index.html", dist), "utf8");
 
-  assert.match(html, /<title>Nira Kova — Enter the Frequency<\/title>/);
+  assert.match(html, /<title>Nira Kova — Meet Me in the Deep<\/title>/);
   assert.match(html, /property="og:image" content="https:\/\/nirakova\.com\/og\.png"/);
   assert.match(html, /name="theme-color" content="#030203"/);
 });
 
 test("ships the music and visual assets", async () => {
   const assets = [
-    "nira-kova.mp3",
-    "nira-portrait.jpeg",
-    "nira-wide.jpeg",
+    "track.mp3",
+    "nira-portrait.jpg",
+    "nira-wide.jpg",
     "og.png",
   ];
 
@@ -37,6 +37,6 @@ test("includes the track identity in the client bundle", async () => {
   );
   const client = bundles.join("\n");
 
-  assert.match(client, /Your Heart Gives You Away/);
-  assert.match(client, /nira-kova\.mp3/);
+  assert.match(client, /Meet Me in the Deep/);
+  assert.match(client, /track\.mp3/);
 });

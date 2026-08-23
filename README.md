@@ -1,8 +1,8 @@
 # Nira Kova
 
-The first immersive home for [nirakova.com](https://nirakova.com): a full-screen, audio-reactive music experience built around Nira Kova's demo track, **Your Heart Gives You Away**.
+The immersive home for [nirakova.com](https://nirakova.com): a full-screen, audio-reactive music experience built around Nira Kova's track, **Meet Me in the Deep**.
 
-The interface responds to the music in real time. Bass drives light and scale, mids shape the atmosphere, highs reveal particles, and pointer or touch movement bends the visual field.
+The interface responds to the music in real time. Bass drives impact waves and camera pressure, mids shape the particle field, highs reveal lightning and chromatic trails, and pointer, touch, or device tilt bends the visual field.
 
 ## Run locally
 
