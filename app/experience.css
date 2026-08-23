@@ -120,7 +120,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 
 /* ============ hero / wordmark ============ */
 .hero { position: absolute; z-index: 4; left: clamp(1.8rem,7.5vw,9rem); top: 50%; transform: translateY(-50%); max-width: min(64vw, 60rem); transition: opacity 1s ease; }
-.eyebrow { display: flex; align-items: center; gap: .8rem; margin: 0 0 1.5rem .3rem; color: #c98a92; font: 500 clamp(.55rem,.7vw,.66rem)/1 "Jost",sans-serif; letter-spacing: .5em; text-indent: .5em; text-transform: uppercase; }
+.eyebrow { display: flex; align-items: center; gap: .8rem; margin: 0 0 1.5rem .3rem; color: #f0d3d7; font: 500 clamp(.55rem,.7vw,.66rem)/1 "Jost",sans-serif; letter-spacing: .5em; text-indent: .5em; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 2px 14px rgba(0,0,0,.85); }
 .eyebrow span { width: 2.8rem; height: 1px; background: linear-gradient(90deg,var(--blood),transparent); box-shadow: 0 0 9px #d52643; }
 
 .artist-wordmark {
@@ -139,8 +139,8 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 }
 .artist-wordmark .wm.two::after { background: linear-gradient(90deg, rgba(190,214,235,.7), rgba(190,214,235,.1)); }
 
-.hero-track { margin: 1.5rem 0 0 .4rem; color: #d9c8c7; font: 500 .62rem/1 "Jost",sans-serif; letter-spacing: .34em; text-transform: uppercase; }
-.hero-track span { color: #7c666b; margin-left: .5rem; }
+.hero-track { margin: 1.5rem 0 0 .4rem; color: #f7eeef; font: 600 .82rem/1.3 "Jost",sans-serif; letter-spacing: .22em; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 2px 16px rgba(0,0,0,.85); }
+.hero-track span { color: #d3b9bc; font-weight: 500; margin-left: .5rem; }
 .hero-blurb { margin: .9rem 0 0 .4rem; max-width: 34rem; color: #9a8b8e; font: 300 .82rem/1.6 "Jost",sans-serif; letter-spacing: .02em; }
 
 /* ============ enter CTA ============ */
@@ -214,7 +214,8 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
   /* leave room so the transport bar never covers the follow row / socials */
   .hero { left: 1.6rem; right: 1.6rem; max-width: none; top: auto; bottom: clamp(9.5rem, 20vh, 13rem); transform: none; }
   .artist-wordmark { font-size: clamp(3rem,17vw,5.6rem); letter-spacing: .12em; text-indent: .12em; }
-  .hero-track { margin-top: 1rem; font-size: .52rem; letter-spacing: .26em; }
+  .hero-track { margin-top: 1rem; font-size: .68rem; letter-spacing: .16em; }
+  .hero-track span { display: block; margin-left: 0; margin-top: .3rem; }
   .hero-blurb { display: none; }
   .eyebrow { margin: 0 0 1.1rem .1rem; font-size: .52rem; }
   .enter { margin: 1.8rem 0 0 .1rem; cursor: pointer; }

@@ -364,7 +364,7 @@ export default function Experience() {
           <span className="wm one" aria-hidden="true">Nira</span>
           <span className="wm two" aria-hidden="true">Kova</span>
         </h1>
-        <p className="hero-track">Meet Me in the Deep <span>— New signal</span></p>
+        <p className="hero-track">Meet Me in the Deep <span>— Debut single</span></p>
         <p className="hero-blurb">The first signal from a new voice in dark electronic pop. Follow along as the album surfaces, one song at a time.</p>
         <button className="enter" type="button" onClick={enter} aria-label="Tap to experience Nira Kova">
           <span className="enter-ring"><i /></span>
