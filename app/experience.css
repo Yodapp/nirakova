@@ -211,7 +211,8 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
       linear-gradient(0deg, #040406 2%, rgba(4,4,6,.9) 22%, rgba(4,4,6,.2) 52%, transparent 72%),
       linear-gradient(180deg, rgba(4,4,6,.55), transparent 26%);
   }
-  .hero { left: 1.6rem; right: 1.6rem; max-width: none; top: auto; bottom: 12vh; transform: none; }
+  /* leave room so the transport bar never covers the follow row / socials */
+  .hero { left: 1.6rem; right: 1.6rem; max-width: none; top: auto; bottom: clamp(9.5rem, 20vh, 13rem); transform: none; }
   .artist-wordmark { font-size: clamp(3rem,17vw,5.6rem); letter-spacing: .12em; text-indent: .12em; }
   .hero-track { margin-top: 1rem; font-size: .52rem; letter-spacing: .26em; }
   .hero-blurb { display: none; }
