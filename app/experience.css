@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400;500&family=Syne:wght@500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400;1,500&family=Jost:wght@200;300;400;500&family=Syne:wght@500;600&display=swap");
 
 :root {
   color-scheme: dark;
@@ -135,6 +135,12 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 
 .hero-track { margin: 1.5rem 0 0 .4rem; color: #f7eeef; font: 600 .82rem/1.3 "Jost",sans-serif; letter-spacing: .22em; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 2px 16px rgba(0,0,0,.85); }
 .hero-track span { color: #d3b9bc; font-weight: 500; margin-left: .5rem; }
+.hero-line {
+  margin: 1rem 0 0 .4rem; max-width: 26rem;
+  color: #efd9db; font: italic 500 clamp(1.05rem,1.7vw,1.35rem)/1.4 "Cormorant Garamond",Georgia,serif;
+  letter-spacing: .01em;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 2px 18px rgba(0,0,0,.85);
+}
 
 /* ============ enter CTA ============ */
 .enter { display: inline-flex; align-items: center; gap: 1.1rem; margin: 2.4rem 0 0 .35rem; padding: 0; border: 0; background: transparent; cursor: none; text-align: left; transition: opacity .5s ease, transform .5s ease; }
@@ -155,10 +161,29 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 .social a:hover { color: #fff; border-color: rgba(230,43,74,.7); background: rgba(230,43,74,.12); transform: translateY(-2px); box-shadow: 0 0 20px rgba(230,43,74,.25); }
 .social svg { width: 15px; height: 15px; fill: currentColor; }
 
+/* ============ lyric cycler — one line from the song at a time ============
+   Lives in normal flow right after the socials (not absolutely positioned)
+   so it always lands in the right place, regardless of viewport height or
+   whether the hero is vertically centered (desktop) or bottom-anchored
+   (mobile) — no magic-number offsets that can drift out of sync. */
+.lyric-cycle {
+  margin: 1.6rem 0 0 .3rem; max-width: 30rem; pointer-events: none;
+  color: #d8c3c6; font: italic 400 clamp(.95rem,1.3vw,1.15rem)/1.5 "Cormorant Garamond",Georgia,serif;
+  letter-spacing: .01em;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 2px 16px rgba(0,0,0,.85);
+  animation: lyric-cycle 7.2s ease-in-out forwards;
+}
+@keyframes lyric-cycle {
+  0% { opacity: 0; transform: translateY(8px); }
+  14% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
 /* ============ transport ============ */
 .transport { position: absolute; z-index: 20; left: 50%; bottom: max(1.5rem,env(safe-area-inset-bottom)); width: min(46rem,64vw); display: flex; align-items: flex-end; gap: 1.3rem; padding: 1rem 1.3rem; border-radius: 16px; background: linear-gradient(180deg, rgba(16,12,16,.36), rgba(6,5,8,.5)); border: 1px solid rgba(245,238,231,.08); backdrop-filter: blur(16px) saturate(1.15); box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05); opacity: 0; pointer-events: none; transform: translate(-50%,18px); transition: opacity 1s .4s ease,transform 1s .4s ease; }
 .is-started .transport { opacity: 1; pointer-events: auto; transform: translate(-50%,0); }
-.play-toggle,.repeat-toggle,.mute { border: 0; background: transparent; padding: 0; cursor: none; }
+.play-toggle,.repeat-toggle { border: 0; background: transparent; padding: 0; cursor: none; }
 .play-toggle { flex: 0 0 auto; width: 2.6rem; height: 2.6rem; display: grid; place-items: center; border: 1px solid rgba(224,49,78,.45); border-radius: 50%; box-shadow: 0 0 calc(var(--bass) * 16px) rgba(230,43,74,.55); transition: border-color .25s ease; }
 .play-toggle:hover { border-color: var(--blood); }
 .play-icon { margin-left: 2px; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 8px solid #e8cdd0; }
@@ -177,12 +202,6 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 .repeat-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .repeat-toggle:hover { border-color: rgba(245,238,231,.42); color: #cdbfc0; }
 .repeat-toggle.is-on { border-color: rgba(230,43,74,.68); color: #f3dfe0; box-shadow: 0 0 14px rgba(230,43,74,.32); }
-.mute { position: relative; width: 1.6rem; height: 2rem; margin-bottom: .15rem; }
-.mute span { position: absolute; left: 1px; top: 12px; width: 5px; height: 7px; border: 1px solid #9c8286; border-right: 0; }
-.mute span::after { content: ""; position: absolute; left: 3px; top: -3px; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-right: 6px solid #9c8286; }
-.mute i { position: absolute; left: 10px; top: 10px; width: 7px; height: 11px; border-right: 1px solid #9c8286; border-radius: 50%; }.mute i:last-child { left: 12px; top: 8px; width: 9px; height: 15px; opacity: .5; }
-.mute.is-muted::after { content: ""; position: absolute; left: 6px; top: 15px; width: 14px; height: 1px; background: #dc3853; transform: rotate(-48deg); }
-
 .mobile-hint { display: none; }
 
 @keyframes orbit { to { transform: rotate(360deg); } }
@@ -199,16 +218,21 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
       linear-gradient(0deg, #040406 2%, rgba(4,4,6,.9) 22%, rgba(4,4,6,.2) 52%, transparent 72%),
       linear-gradient(180deg, rgba(4,4,6,.55), transparent 26%);
   }
-  /* leave room so the transport bar never covers the follow row / socials */
-  .hero { left: 1.6rem; right: 1.6rem; max-width: none; top: auto; bottom: clamp(9.5rem, 20vh, 13rem); transform: none; }
+  /* Sit naturally above the safe area before entering — nothing reserved
+     for the player yet, so there's no dead space beneath the socials. Once
+     started, lift the hero to leave room for the lyric line + player. */
+  .hero { left: 1.6rem; right: 1.6rem; max-width: none; top: auto; bottom: 7vh; transform: none; transition: opacity 1s ease, bottom .6s ease; }
+  .is-started .hero { bottom: clamp(9.5rem, 20vh, 13rem); }
   .artist-wordmark { font-size: clamp(3rem,17vw,5.6rem); letter-spacing: .12em; text-indent: .12em; }
   .hero-track { margin-top: 1rem; font-size: .68rem; letter-spacing: .16em; }
   .hero-track span { display: block; margin-left: 0; margin-top: .3rem; }
+  .hero-line { margin: .8rem 0 0 .1rem; max-width: none; font-size: 1.05rem; }
   .enter { margin: 1.8rem 0 0 .1rem; cursor: pointer; }
   .follow { margin: 1.6rem 0 .8rem .15rem; font-size: .54rem; letter-spacing: .18em; }
   .social a { cursor: pointer; }
+  .lyric-cycle { margin: 1.2rem 0 0 .1rem; max-width: none; font-size: 1rem; }
   .transport { width: calc(100% - 2.4rem); bottom: max(1rem,calc(env(safe-area-inset-bottom) + .5rem)); gap: .7rem; padding: .8rem 1rem; }
-  .play-toggle,.repeat-toggle,.mute { cursor: pointer; }
+  .play-toggle,.repeat-toggle { cursor: pointer; }
   .track-row span { display: none; }
   .equalizer { height: 22px; }
   .topbar { top: max(1.35rem,env(safe-area-inset-top)); }
@@ -217,12 +241,15 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 @media (max-height: 620px) and (orientation: landscape) {
   .hero { top: 50%; left: 6vw; bottom: auto; }
   .artist-wordmark { font-size: 13vh; }
+  .hero-line { display: none; }
   .enter { margin-top: 1.2rem; }
   .transport { bottom: 1rem; }
   .follow { display: none; }
+  .lyric-cycle { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .grain,.enter-ring::after { animation: none !important; }
   .experience::before { transition: none; }
+  .lyric-cycle { animation: none; opacity: 1; }
 }

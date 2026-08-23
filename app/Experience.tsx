@@ -12,6 +12,15 @@ function formatTime(value: number) {
   return `${Math.floor(safe / 60)}:${Math.floor(safe % 60).toString().padStart(2, "0")}`;
 }
 
+// Supporting lines from "Meet Me in the Deep", cycled one at a time while
+// the track plays. The strongest line — "I won't lose myself to hold
+// you." — is used as a permanent pull-quote instead; see the hero markup.
+const LYRICS = [
+  "Bring me something I can trust, not just something I can feel.",
+  "Not the girl you almost loved.",
+  "Meet me in the deep.",
+];
+
 function averageFrequencyRange(data: Uint8Array<ArrayBuffer>, sampleRate: number, fftSize: number, low: number, high: number) {
   const binWidth = sampleRate / fftSize;
   const from = Math.max(0, Math.floor(low / binWidth));
@@ -31,10 +40,10 @@ export default function Experience() {
   const ripplesRef = useRef<Ripple[]>([]);
   const [started, setStarted] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(false);
   const [repeat, setRepeat] = useState(true);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [lyricIndex, setLyricIndex] = useState(0);
 
   const requestTiltAccess = useCallback(async () => {
     type PermissionAwareOrientation = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> };
@@ -89,6 +98,17 @@ export default function Experience() {
   const updatePointer = (event: ReactPointerEvent<HTMLElement>) => {
     pointerRef.current = { x: event.clientX / window.innerWidth, y: event.clientY / window.innerHeight, active: true };
   };
+
+  // Advance the lyric line on a fixed cadence via JS rather than relying on
+  // a CSS animationend event — keeps it working the same for everyone,
+  // including prefers-reduced-motion users where the fade is disabled.
+  useEffect(() => {
+    if (!started) return;
+    const id = window.setInterval(() => {
+      setLyricIndex((index) => (index + 1) % LYRICS.length);
+    }, 7200);
+    return () => window.clearInterval(id);
+  }, [started]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -176,8 +196,10 @@ export default function Experience() {
     };
 
     // Real, audio-reactive bar equalizer — bottom-aligned bars with rounded
-    // caps and a crimson-to-cyan gradient, driven by actual frequency data.
-    const drawWaveform = (frequencyData: Uint8Array<ArrayBuffer> | null, bass: number, now: number) => {
+    // caps. Colored with the same crimson-to-cyan sweep as the original
+    // waveform line (one gradient across the full width, not per bar), so
+    // the player still reads as a skin made for Nira Kova, not a generic EQ.
+    const drawWaveform = (frequencyData: Uint8Array<ArrayBuffer> | null, bass: number, high: number, now: number) => {
       const rect = waveform.getBoundingClientRect();
       const w = rect.width;
       const h = rect.height;
@@ -186,6 +208,12 @@ export default function Experience() {
       const gap = Math.max(1.5, w / barCount * 0.28);
       const barWidth = w / barCount - gap;
       const usableBins = frequencyData ? Math.floor(frequencyData.length * 0.62) : 0;
+
+      const gradient = waveContext.createLinearGradient(0, 0, w, 0);
+      gradient.addColorStop(0, `rgba(230,43,74,${0.58 + bass * 0.3})`);
+      gradient.addColorStop(0.55, `rgba(236,90,110,${0.68 + bass * 0.28})`);
+      gradient.addColorStop(1, `rgba(96,190,230,${0.6 + high * 0.35})`);
+      waveContext.fillStyle = gradient;
 
       for (let index = 0; index < barCount; index += 1) {
         let target: number;
@@ -203,12 +231,6 @@ export default function Experience() {
         const x = index * (barWidth + gap);
         const y = h - barHeight;
         const radius = Math.min(barWidth / 2, 3);
-
-        const gradient = waveContext.createLinearGradient(0, h, 0, 0);
-        gradient.addColorStop(0, `rgba(230,43,74,${0.5 + bass * 0.3})`);
-        gradient.addColorStop(0.55, `rgba(236,90,110,${0.62 + bass * 0.3})`);
-        gradient.addColorStop(1, "rgba(120,196,230,.85)");
-        waveContext.fillStyle = gradient;
 
         waveContext.beginPath();
         waveContext.moveTo(x, h);
@@ -348,7 +370,7 @@ export default function Experience() {
         return true;
       });
       context.globalCompositeOperation = "source-over";
-      drawWaveform(frequencyData, smoothBass, now);
+      drawWaveform(frequencyData, smoothBass, smoothHigh, now);
     };
 
     resize();
@@ -383,6 +405,7 @@ export default function Experience() {
           <span className="wm two" aria-hidden="true">Kova</span>
         </h1>
         <p className="hero-track">Meet Me in the Deep <span>— Debut single</span></p>
+        <p className="hero-line">I won&rsquo;t lose myself to hold you.</p>
         <button className="enter" type="button" onClick={enter} aria-label="Tap to experience Nira Kova">
           <span className="enter-ring"><i /></span>
           <span className="enter-copy"><b>Tap to Experience</b><small>Sound on · Headphones recommended</small></span>
@@ -408,6 +431,11 @@ export default function Experience() {
             <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13.5 21v-7.5h2.4l.4-2.9h-2.8V8.7c0-.8.3-1.4 1.5-1.4h1.4V4.7c-.7-.1-1.5-.2-2.3-.2-2.3 0-3.8 1.4-3.8 3.9v2.2H8v2.9h2.3V21z" /></svg>
           </a>
         </nav>
+        {started && (
+          <p key={lyricIndex} className="lyric-cycle">
+            {LYRICS[lyricIndex]}
+          </p>
+        )}
       </section>
 
       <section className="transport" aria-label="Audio controls">
@@ -425,11 +453,6 @@ export default function Experience() {
         <button className={`repeat-toggle ${repeat ? "is-on" : ""}`} type="button" aria-pressed={repeat} aria-label={repeat ? "Turn repeat off" : "Turn repeat on"} onClick={() => setRepeat((prev) => !prev)}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11a4 4 0 0 1 4 4v1m-3-3 3 3-3 3M20 17H9a4 4 0 0 1-4-4v-1m3 3-3-3 3-3" /></svg>
         </button>
-        <button className={`mute ${muted ? "is-muted" : ""}`} type="button" aria-label={muted ? "Unmute" : "Mute"} onClick={() => {
-          const next = !muted;
-          setMuted(next);
-          if (audioRef.current) audioRef.current.muted = next;
-        }}><span /><i /><i /></button>
       </section>
       <p className="mobile-hint">Drag to bend light · Tap for impact</p>
     </main>
