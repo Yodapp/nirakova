@@ -346,14 +346,11 @@ export default function Experience() {
       <div className="pointer-aura" aria-hidden="true" />
       <canvas ref={canvasRef} className="signal-canvas" aria-hidden="true" />
       <div className="lightning" aria-hidden="true" />
-      <div className="scanlines" aria-hidden="true" />
       <div className="grain" aria-hidden="true" />
 
       <header className="topbar">
         <div className="monogram" aria-label="Nira Kova">NK</div>
       </header>
-      <i className="corner corner-tl" aria-hidden="true" /><i className="corner corner-tr" aria-hidden="true" />
-      <i className="corner corner-bl" aria-hidden="true" /><i className="corner corner-br" aria-hidden="true" />
 
       <section className="hero" aria-labelledby="artist-name">
         <h1 id="artist-name" className="artist-wordmark" aria-label="Nira Kova">

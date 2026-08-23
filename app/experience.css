@@ -54,7 +54,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
   transition: opacity .3s ease;
 }
 
-.portrait, .wide-memory, .portrait-shade, .pointer-aura, .lightning, .scanlines, .grain {
+.portrait, .wide-memory, .portrait-shade, .pointer-aura, .lightning, .grain {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -108,7 +108,6 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 
 .signal-canvas { position: absolute; inset: 0; z-index: -3; pointer-events: none; }
 .lightning { z-index: -2; opacity: calc(var(--lightning) * .18); background: linear-gradient(112deg, transparent 42%, rgba(115,199,236,.28) 49.5%, rgba(255,255,255,.6) 50%, transparent 51%), radial-gradient(circle at 74% 42%, rgba(210,236,255,.2), transparent 34%); mix-blend-mode: screen; }
-.scanlines { z-index: 12; opacity: calc(.035 + var(--high) * .06); background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,255,255,.02) 3px 4px); mix-blend-mode: soft-light; }
 .grain { z-index: 13; inset: -50%; width: 200%; height: 200%; opacity: .035; background-image: repeating-radial-gradient(circle at 31% 47%, rgba(255,255,255,.7) 0 .35px, transparent .6px 3px), repeating-radial-gradient(circle at 71% 21%, rgba(255,255,255,.42) 0 .25px, transparent .5px 4px); background-size: 9px 11px,13px 8px; animation: grain-shift .24s steps(2) infinite; }
 
 /* ============ top bar ============ */
@@ -180,10 +179,6 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 .mute i { position: absolute; left: 10px; top: 10px; width: 7px; height: 11px; border-right: 1px solid #9c8286; border-radius: 50%; }.mute i:last-child { left: 12px; top: 8px; width: 9px; height: 15px; opacity: .5; }
 .mute.is-muted::after { content: ""; position: absolute; left: 6px; top: 15px; width: 14px; height: 1px; background: #dc3853; transform: rotate(-48deg); }
 
-/* ============ decor ============ */
-.corner { position: absolute; z-index: 8; width: 1.8rem; height: 1.8rem; opacity: .45; }
-.corner::before,.corner::after { content: ""; position: absolute; background: #b92540; box-shadow: 0 0 7px rgba(185,37,64,.4); }.corner::before { width: 100%; height: 1px; }.corner::after { width: 1px; height: 100%; }
-.corner-tl { top: 1.25rem; left: 1.25rem; }.corner-tr { top: 1.25rem; right: 1.25rem; transform: rotate(90deg); }.corner-br { bottom: 1.25rem; right: 1.25rem; transform: rotate(180deg); }.corner-bl { bottom: 1.25rem; left: 1.25rem; transform: rotate(270deg); }
 .mobile-hint { display: none; }
 
 @keyframes orbit { to { transform: rotate(360deg); } }
@@ -213,8 +208,6 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
   .track-row span { display: none; }
   .waveform { height: 20px; }
   .topbar { top: max(1.35rem,env(safe-area-inset-top)); }
-  .corner { width: 1.1rem; height: 1.1rem; }
-  .corner-tl,.corner-tr { top: .75rem; }.corner-tl,.corner-bl { left: .75rem; }.corner-tr,.corner-br { right: .75rem; }.corner-bl,.corner-br { bottom: .75rem; }
 }
 
 @media (max-height: 620px) and (orientation: landscape) {
