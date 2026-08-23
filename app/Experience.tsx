@@ -168,7 +168,7 @@ export default function Experience() {
     const bassHistory = Array.from({ length: 42 }, () => 0.12);
     let lastBeat = 0;
     let lastHighFlash = 0;
-    const barCount = 40;
+    const barCount = 22;
     const barLevels = new Float32Array(barCount);
 
     const particles: Particle[] = Array.from({ length: 190 }, (_, index) => ({
@@ -196,23 +196,25 @@ export default function Experience() {
     };
 
     // Real, audio-reactive bar equalizer — bottom-aligned bars with rounded
-    // caps. Colored with the same crimson-to-cyan sweep as the original
-    // waveform line (one gradient across the full width, not per bar), so
-    // the player still reads as a skin made for Nira Kova, not a generic EQ.
-    const drawWaveform = (frequencyData: Uint8Array<ArrayBuffer> | null, bass: number, high: number, now: number) => {
+    // caps. One vertical gradient spans the whole container (faded steel
+    // blue at the baseline, warming to a muted crimson only near the very
+    // top) so it reads like a classic VU meter tuned to the site's palette:
+    // quiet bars stay cool, only the loudest peaks reach red. Every bar
+    // samples the same gradient, so short bars naturally stay blue.
+    const drawWaveform = (frequencyData: Uint8Array<ArrayBuffer> | null, bass: number, now: number) => {
       const rect = waveform.getBoundingClientRect();
       const w = rect.width;
       const h = rect.height;
       waveContext.clearRect(0, 0, w, h);
 
-      const gap = Math.max(1.5, w / barCount * 0.28);
+      const gap = Math.max(3, w / barCount * 0.38);
       const barWidth = w / barCount - gap;
       const usableBins = frequencyData ? Math.floor(frequencyData.length * 0.62) : 0;
 
-      const gradient = waveContext.createLinearGradient(0, 0, w, 0);
-      gradient.addColorStop(0, `rgba(230,43,74,${0.58 + bass * 0.3})`);
-      gradient.addColorStop(0.55, `rgba(236,90,110,${0.68 + bass * 0.28})`);
-      gradient.addColorStop(1, `rgba(96,190,230,${0.6 + high * 0.35})`);
+      const gradient = waveContext.createLinearGradient(0, h, 0, 0);
+      gradient.addColorStop(0, `rgba(94,156,206,${0.32 + bass * 0.1})`);
+      gradient.addColorStop(0.62, `rgba(176,104,132,${0.4 + bass * 0.12})`);
+      gradient.addColorStop(1, `rgba(230,70,88,${0.52 + bass * 0.16})`);
       waveContext.fillStyle = gradient;
 
       for (let index = 0; index < barCount; index += 1) {
@@ -370,7 +372,7 @@ export default function Experience() {
         return true;
       });
       context.globalCompositeOperation = "source-over";
-      drawWaveform(frequencyData, smoothBass, smoothHigh, now);
+      drawWaveform(frequencyData, smoothBass, now);
     };
 
     resize();
