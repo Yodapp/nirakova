@@ -15,10 +15,12 @@ function formatTime(value: number) {
 // Supporting lines from "Meet Me in the Deep", cycled one at a time while
 // the track plays. The strongest line — "I won't lose myself to hold
 // you." — is used as a permanent pull-quote instead; see the hero markup.
-const LYRICS = [
-  "Bring me something I can trust, not just something I can feel.",
-  "Not the girl you almost loved.",
-  "Meet me in the deep.",
+// Each entry is the line(s) it should render as; a manual break keeps the
+// wrap point intentional instead of wherever the browser happens to wrap.
+const LYRICS: string[][] = [
+  ["Bring me something I can trust,", "not just something I can feel."],
+  ["Not the girl you almost loved."],
+  ["Meet me in the deep."],
 ];
 
 function averageFrequencyRange(data: Uint8Array<ArrayBuffer>, sampleRate: number, fftSize: number, low: number, high: number) {
@@ -406,38 +408,45 @@ export default function Experience() {
           <span className="wm one" aria-hidden="true">Nira</span>
           <span className="wm two" aria-hidden="true">Kova</span>
         </h1>
-        <p className="hero-track">Meet Me in the Deep <span>— Debut single</span></p>
-        <p className="hero-line">I won&rsquo;t lose myself to hold you.</p>
-        <button className="enter" type="button" onClick={enter} aria-label="Tap to experience Nira Kova">
-          <span className="enter-ring"><i /></span>
-          <span className="enter-copy"><b>Tap to Experience</b><small>Sound on · Headphones recommended</small></span>
-        </button>
-        <p className="follow">Follow for new songs &amp; the upcoming album</p>
-        <nav className="social" aria-label="Nira Kova on social media">
-          <a href="https://www.instagram.com/nirakovaofficial" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5" /><circle cx="12" cy="12" r="4.2" /><circle cx="17.3" cy="6.7" r="1.05" fill="currentColor" stroke="none" /></svg>
-          </a>
-          <a href="https://www.tiktok.com/@nirakova" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M9.4 15.2a2.9 2.9 0 1 0 2.9 2.9V6.2c.6 1.9 2.1 3.3 4.1 3.6" /></svg>
-          </a>
-          <a href="https://www.youtube.com/@NiraKova" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="2.6" y="5.6" width="18.8" height="12.8" rx="4" /><path d="M10.3 9.3l5 2.7-5 2.7z" fill="currentColor" stroke="none" /></svg>
-          </a>
-          <a href="https://x.com/realnirakova" target="_blank" rel="noopener noreferrer" aria-label="X">
-            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-          </a>
-          <a href="https://www.threads.net/@nirakovaofficial" target="_blank" rel="noopener noreferrer" aria-label="Threads">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20.5c-4 0-6.5-2.8-6.5-8.5S8 3.5 12 3.5c3 0 4.9 1.4 5.7 3.6M8.6 13.2c.3-1.6 1.6-2.6 3.4-2.6 2 0 3.3 1.1 3.3 2.7 0 1.9-1.7 2.9-3.4 2.9-1.5 0-2.4-.8-2.4-1.9 0-1.2 1.1-2 2.8-2 2.4 0 4.2 1.4 4.2 3.7" /></svg>
-          </a>
-          <a href="https://www.facebook.com/share/1Hu75VVAS8/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
-            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13.5 21v-7.5h2.4l.4-2.9h-2.8V8.7c0-.8.3-1.4 1.5-1.4h1.4V4.7c-.7-.1-1.5-.2-2.3-.2-2.3 0-3.8 1.4-3.8 3.9v2.2H8v2.9h2.3V21z" /></svg>
-          </a>
-        </nav>
-        {started && (
-          <p key={lyricIndex} className="lyric-cycle">
-            {LYRICS[lyricIndex]}
-          </p>
-        )}
+        <div className="hero-info">
+          <p className="hero-track">Meet Me in the Deep <span>— Debut single</span></p>
+          <p className="hero-line">I won&rsquo;t lose myself to hold you.</p>
+          <button className="enter" type="button" onClick={enter} aria-label="Tap to experience Nira Kova">
+            <span className="enter-ring"><i /></span>
+            <span className="enter-copy"><b>Tap to Experience</b><small>Sound on · Headphones recommended</small></span>
+          </button>
+          <p className="follow">Follow for new songs &amp; the upcoming album</p>
+          <nav className="social" aria-label="Nira Kova on social media">
+            <a href="https://www.instagram.com/nirakovaofficial" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5" /><circle cx="12" cy="12" r="4.2" /><circle cx="17.3" cy="6.7" r="1.05" fill="currentColor" stroke="none" /></svg>
+            </a>
+            <a href="https://www.tiktok.com/@nirakova" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M9.4 15.2a2.9 2.9 0 1 0 2.9 2.9V6.2c.6 1.9 2.1 3.3 4.1 3.6" /></svg>
+            </a>
+            <a href="https://www.youtube.com/@NiraKova" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="2.6" y="5.6" width="18.8" height="12.8" rx="4" /><path d="M10.3 9.3l5 2.7-5 2.7z" fill="currentColor" stroke="none" /></svg>
+            </a>
+            <a href="https://x.com/realnirakova" target="_blank" rel="noopener noreferrer" aria-label="X">
+              <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+            </a>
+            <a href="https://www.threads.net/@nirakovaofficial" target="_blank" rel="noopener noreferrer" aria-label="Threads">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20.5c-4 0-6.5-2.8-6.5-8.5S8 3.5 12 3.5c3 0 4.9 1.4 5.7 3.6M8.6 13.2c.3-1.6 1.6-2.6 3.4-2.6 2 0 3.3 1.1 3.3 2.7 0 1.9-1.7 2.9-3.4 2.9-1.5 0-2.4-.8-2.4-1.9 0-1.2 1.1-2 2.8-2 2.4 0 4.2 1.4 4.2 3.7" /></svg>
+            </a>
+            <a href="https://www.facebook.com/share/1Hu75VVAS8/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+              <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13.5 21v-7.5h2.4l.4-2.9h-2.8V8.7c0-.8.3-1.4 1.5-1.4h1.4V4.7c-.7-.1-1.5-.2-2.3-.2-2.3 0-3.8 1.4-3.8 3.9v2.2H8v2.9h2.3V21z" /></svg>
+            </a>
+          </nav>
+          {started && (
+            <p key={lyricIndex} className="lyric-cycle">
+              {LYRICS[lyricIndex].map((line, index) => (
+                <span key={index}>
+                  {index > 0 && <br />}
+                  {line}
+                </span>
+              ))}
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="transport" aria-label="Audio controls">

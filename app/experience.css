@@ -236,6 +236,21 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
      started, lift the hero to leave room for the lyric line + player. */
   .hero { left: 1.6rem; right: 1.6rem; max-width: none; top: auto; bottom: 7vh; transform: none; transition: opacity 1s ease, bottom .6s ease; }
   .is-started .hero { bottom: clamp(9.5rem, 20vh, 13rem); }
+  /* A dedicated legibility scrim behind everything BELOW the wordmark
+     (track line, pull-quote, CTA, follow, socials, lyric) — sized to that
+     content, not a fixed percentage of the viewport, so it stays correct
+     as the stack grows taller. Deliberately excludes the wordmark/her
+     face above it: that already reads fine against her hair, and a blur
+     there would soften her features, which we never want to do. */
+  .hero-info { position: relative; }
+  .hero-info::before {
+    content: ""; position: absolute; z-index: -1;
+    inset: -1rem -1.3rem;
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(4,3,6,.2) 0%, rgba(4,3,6,.6) 10%, rgba(4,3,6,.7) 100%);
+    backdrop-filter: blur(5px) saturate(1.05);
+    -webkit-backdrop-filter: blur(5px) saturate(1.05);
+  }
   .artist-wordmark { font-size: clamp(3rem,17vw,5.6rem); letter-spacing: .12em; text-indent: .12em; }
   .hero-track { margin-top: 1rem; font-size: .68rem; letter-spacing: .16em; }
   .hero-track span { display: block; margin-left: 0; margin-top: .3rem; }
