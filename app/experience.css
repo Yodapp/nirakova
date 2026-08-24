@@ -194,10 +194,23 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
   100% { opacity: 0; transform: translateY(-6px); }
 }
 
-/* ============ transport ============ */
-.transport { position: absolute; z-index: 20; left: 50%; bottom: max(1.5rem,env(safe-area-inset-bottom)); width: min(46rem,64vw); display: flex; align-items: center; gap: 1.3rem; padding: 1.1rem 1.4rem; border-radius: 18px; background: linear-gradient(180deg, rgba(16,12,16,.36), rgba(6,5,8,.5)); border: 1px solid rgba(245,238,231,.08); backdrop-filter: blur(16px) saturate(1.15); box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05); opacity: 0; pointer-events: none; transform: translate(-50%,18px); transition: opacity 1s .4s ease,transform 1s .4s ease; }
+/* ============ transport — controls row + playlist, one card ============ */
+.transport {
+  position: absolute; z-index: 20; left: 50%; bottom: max(1.5rem,env(safe-area-inset-bottom));
+  width: min(46rem,64vw);
+  display: flex; flex-direction: column; gap: .2rem;
+  padding: 1.1rem 1.4rem .6rem;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(16,12,16,.36), rgba(6,5,8,.5));
+  border: 1px solid rgba(245,238,231,.08);
+  backdrop-filter: blur(16px) saturate(1.15);
+  box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);
+  opacity: 0; pointer-events: none; transform: translate(-50%,18px);
+  transition: opacity 1s .4s ease,transform 1s .4s ease;
+}
 .is-started .transport { opacity: 1; pointer-events: auto; transform: translate(-50%,0); }
-.play-toggle,.repeat-toggle { border: 0; background: transparent; padding: 0; cursor: none; }
+.transport-controls { display: flex; align-items: center; gap: 1.1rem; }
+.play-toggle,.repeat-toggle,.skip-toggle { border: 0; background: transparent; padding: 0; cursor: none; }
 .play-toggle {
   flex: none; width: clamp(3.2rem,9vw,3.7rem); height: clamp(3.2rem,9vw,3.7rem);
   display: grid; place-items: center; border-radius: 50%;
@@ -208,6 +221,15 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 .play-toggle:hover { transform: scale(1.05); }
 .play-icon { margin-left: 3px; width: 0; height: 0; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 13px solid #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
 .pause-icon { width: 11px; height: 14px; border-left: 3px solid #fff; border-right: 3px solid #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+.skip-toggle {
+  position: relative; flex: none;
+  width: clamp(2.5rem,7vw,2.8rem); height: clamp(2.5rem,7vw,2.8rem);
+  display: grid; place-items: center; border: 1px solid rgba(245,238,231,.18); border-radius: 50%;
+  color: #d9c5c8; transition: border-color .25s ease, color .25s ease, transform .15s ease;
+}
+.skip-toggle svg { width: 16px; height: 16px; }
+.skip-toggle:hover { border-color: rgba(245,238,231,.4); color: #fff; }
+.skip-toggle:active { transform: scale(.92); }
 .timeline-wrap { flex: 1; min-width: 0; }
 .track-row { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: .32rem; text-transform: uppercase; }
 .track-row strong { overflow: hidden; color: #e4cfd0; font: 500 .6rem/1 "Jost",sans-serif; letter-spacing: .26em; text-overflow: ellipsis; white-space: nowrap; }
@@ -222,9 +244,27 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 .repeat-toggle svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .repeat-toggle:hover { border-color: rgba(245,238,231,.42); color: #cdbfc0; }
 .repeat-toggle.is-on { border-color: rgba(230,43,74,.68); color: #f3dfe0; box-shadow: 0 0 14px rgba(230,43,74,.32); }
+
+/* ============ playlist — no artwork yet, just clean editorial rows ============ */
+.playlist { list-style: none; margin: .6rem 0 0; padding: .5rem 0 0; border-top: 1px solid rgba(245,238,231,.08); display: grid; gap: .05rem; }
+.playlist-row button {
+  width: 100%; display: flex; align-items: center; gap: .9rem;
+  padding: .5rem .35rem; border: 0; background: transparent; border-radius: 10px;
+  cursor: none; text-align: left; transition: background .2s ease;
+}
+.playlist-row button:hover { background: rgba(245,238,231,.05); }
+.playlist-index { flex: none; width: 1.5rem; text-align: center; color: #7c6367; font: 500 .62rem/1 ui-monospace,monospace; letter-spacing: .04em; }
+.playing-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--blood); box-shadow: 0 0 8px var(--blood); animation: pulse-dot 1.2s ease-in-out infinite; }
+.playlist-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: baseline; gap: .5rem; color: #a8969a; font: 500 .68rem/1 "Jost",sans-serif; letter-spacing: .1em; text-transform: uppercase; transition: color .2s ease; }
+.playlist-new { flex: none; padding: .12rem .4rem; border-radius: 999px; background: rgba(230,43,74,.16); border: 1px solid rgba(230,43,74,.4); color: #ffb3c0; font: 700 .5rem/1 "Jost",sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.playlist-duration { flex: none; color: #6c5a5e; font: 400 .58rem/1 ui-monospace,monospace; letter-spacing: .04em; }
+.playlist-row.is-current .playlist-title { color: #f3e3e5; }
+.playlist-row.is-current .playlist-index { color: var(--blood); }
+
 .mobile-hint { display: none; }
 
 @keyframes orbit { to { transform: rotate(360deg); } }
+@keyframes pulse-dot { 50% { opacity: .3; transform: scale(.7); } }
 @keyframes grain-shift { 0% { transform: translate(1%,-1%); } 25% { transform: translate(-2%,1%); } 50% { transform: translate(1%,2%); } 75% { transform: translate(2%,-1%); } 100% { transform: translate(-1%,-2%); } }
 
 /* ============ mobile — portrait hero, she fills the frame ============ */
@@ -242,7 +282,12 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
      for the player yet, so there's no dead space beneath the socials. Once
      started, lift the hero to leave room for the lyric line + player. */
   .hero { left: 1.6rem; right: 1.6rem; max-width: none; top: auto; bottom: 7vh; transform: none; transition: opacity 1s ease, bottom .6s ease; }
-  .is-started .hero { bottom: clamp(9.5rem, 20vh, 13rem); }
+  /* Tied to the transport's own bottom-offset formula (not a fixed vh
+     guess) plus its approximate height, so this stays correct as the
+     player grows — e.g. once the playlist rows were added below the
+     controls, a flat vh-based clamp here quietly fell out of sync and
+     the player started covering the lyric line. */
+  .is-started .hero { bottom: calc(max(1rem,env(safe-area-inset-bottom) + .5rem) + 11.3rem); }
   /* A dedicated legibility scrim behind everything BELOW the wordmark
      (track line, pull-quote, CTA, follow, socials, lyric) — sized to that
      content, not a fixed percentage of the viewport, so it stays correct
@@ -271,8 +316,11 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
   .is-started .follow { margin-top: 2.6rem; }
   .social a { cursor: pointer; }
   .lyric-cycle { margin: 1.2rem 0 0 .1rem; max-width: none; font-size: 1rem; }
-  .transport { width: calc(100% - 2.4rem); bottom: max(1rem,calc(env(safe-area-inset-bottom) + .5rem)); gap: .9rem; padding: .9rem 1.1rem; }
-  .play-toggle,.repeat-toggle { cursor: pointer; }
+  .transport { width: calc(100% - 2.4rem); bottom: max(1rem,calc(env(safe-area-inset-bottom) + .5rem)); gap: .15rem; padding: .9rem 1.1rem .4rem; }
+  .transport-controls { gap: .75rem; }
+  .play-toggle,.repeat-toggle,.skip-toggle { cursor: pointer; }
+  .playlist-row button { cursor: pointer; padding: .45rem .2rem; gap: .65rem; }
+  .playlist-title { font-size: .62rem; letter-spacing: .06em; }
   .track-row span { display: none; }
   .equalizer { height: 22px; }
   .topbar { top: max(1.35rem,env(safe-area-inset-top)); }
@@ -286,6 +334,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
   .transport { bottom: 1rem; }
   .follow { display: none; }
   .lyric-cycle { display: none; }
+  .playlist { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -6,22 +6,53 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 type Ripple = { x: number; y: number; life: number; strength: number };
 type Particle = { angle: number; radius: number; speed: number; size: number; phase: number; hue: number };
 type AudioBands = { bass: number; mids: number; highs: number };
+type RepeatMode = "off" | "all" | "one";
+
+type Track = {
+  id: string;
+  title: string;
+  tagline: string;
+  pullQuote: string;
+  lyrics: string[][];
+  src: string;
+  isNew?: boolean;
+};
+
+// Each track carries its own identity — title, tagline, permanent pull-quote,
+// and rotating lyric lines — so the hero reflects whichever song is playing,
+// not just the player bar.
+const TRACKS: Track[] = [
+  {
+    id: "meet-me-in-the-deep",
+    title: "Meet Me in the Deep",
+    tagline: "Debut single",
+    pullQuote: "I won’t lose myself to hold you.",
+    lyrics: [
+      ["Bring me something I can trust,", "not just something I can feel."],
+      ["Not the girl you almost loved."],
+      ["Meet me in the deep."],
+    ],
+    src: "/track.mp3",
+  },
+  {
+    id: "never-learned-your-name",
+    title: "Never Learned Your Name",
+    tagline: "New single",
+    pullQuote: "You’re the one I can’t forget.",
+    lyrics: [
+      ["No promise, no goodbye —", "just a feeling from that night."],
+      ["Maybe it was only a moment,", "maybe that is all it was."],
+      ["For one second,", "you were everything I felt."],
+    ],
+    src: "/never-learned-your-name.mp3",
+    isNew: true,
+  },
+];
 
 function formatTime(value: number) {
   const safe = Number.isFinite(value) ? value : 0;
   return `${Math.floor(safe / 60)}:${Math.floor(safe % 60).toString().padStart(2, "0")}`;
 }
-
-// Supporting lines from "Meet Me in the Deep", cycled one at a time while
-// the track plays. The strongest line — "I won't lose myself to hold
-// you." — is used as a permanent pull-quote instead; see the hero markup.
-// Each entry is the line(s) it should render as; a manual break keeps the
-// wrap point intentional instead of wherever the browser happens to wrap.
-const LYRICS: string[][] = [
-  ["Bring me something I can trust,", "not just something I can feel."],
-  ["Not the girl you almost loved."],
-  ["Meet me in the deep."],
-];
 
 function averageFrequencyRange(data: Uint8Array<ArrayBuffer>, sampleRate: number, fftSize: number, low: number, high: number) {
   const binWidth = sampleRate / fftSize;
@@ -42,10 +73,14 @@ export default function Experience() {
   const ripplesRef = useRef<Ripple[]>([]);
   const [started, setStarted] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [repeat, setRepeat] = useState(true);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>("all");
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [lyricIndex, setLyricIndex] = useState(0);
+  const [trackIndex, setTrackIndex] = useState(0);
+  const [trackDurations, setTrackDurations] = useState<number[]>(() => TRACKS.map(() => 0));
+
+  const currentTrack = TRACKS[trackIndex];
 
   const requestTiltAccess = useCallback(async () => {
     type PermissionAwareOrientation = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> };
@@ -97,6 +132,61 @@ export default function Experience() {
     }
   }, [primeAudio, started]);
 
+  // Switch to a given track. Tapping the track that's already playing just
+  // toggles play/pause instead of restarting it.
+  const playTrackAt = useCallback(async (index: number) => {
+    if (index === trackIndex) {
+      await togglePlayback();
+      return;
+    }
+    const audio = audioRef.current;
+    setTrackIndex(index);
+    setLyricIndex(0);
+    setStarted(true);
+    void requestTiltAccess();
+    if (!audio) return;
+    audio.src = TRACKS[index].src;
+    try {
+      await primeAudio();
+      audio.load();
+      await audio.play();
+    } catch {
+      setPlaying(false);
+    }
+  }, [trackIndex, togglePlayback, primeAudio, requestTiltAccess]);
+
+  // Advance through the queue. Wraps to the first track when repeat is set
+  // to "all"; with repeat off, playback simply stops after the last track —
+  // matching how Spotify/Apple Music handle an un-repeated queue.
+  const goToNext = useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const isLast = trackIndex === TRACKS.length - 1;
+    if (isLast && repeatMode === "off") {
+      setPlaying(false);
+      return;
+    }
+    const nextIndex = isLast ? 0 : trackIndex + 1;
+    setTrackIndex(nextIndex);
+    setLyricIndex(0);
+    audio.src = TRACKS[nextIndex].src;
+    try {
+      audio.load();
+      await audio.play();
+    } catch {
+      setPlaying(false);
+    }
+  }, [trackIndex, repeatMode]);
+
+  const goToPrevious = useCallback(async () => {
+    const previousIndex = trackIndex === 0 ? TRACKS.length - 1 : trackIndex - 1;
+    await playTrackAt(previousIndex);
+  }, [trackIndex, playTrackAt]);
+
+  const cycleRepeat = useCallback(() => {
+    setRepeatMode((mode) => (mode === "off" ? "all" : mode === "all" ? "one" : "off"));
+  }, []);
+
   const updatePointer = (event: ReactPointerEvent<HTMLElement>) => {
     pointerRef.current = { x: event.clientX / window.innerWidth, y: event.clientY / window.innerHeight, active: true };
   };
@@ -107,10 +197,10 @@ export default function Experience() {
   useEffect(() => {
     if (!started) return;
     const id = window.setInterval(() => {
-      setLyricIndex((index) => (index + 1) % LYRICS.length);
+      setLyricIndex((index) => (index + 1) % currentTrack.lyrics.length);
     }, 7200);
     return () => window.clearInterval(id);
-  }, [started]);
+  }, [started, currentTrack.lyrics.length]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -119,19 +209,79 @@ export default function Experience() {
     const loaded = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
     const played = () => setPlaying(true);
     const paused = () => setPlaying(false);
+    const ended = () => {
+      if (repeatMode === "one") return; // native loop handles this; ended won't fire
+      void goToNext();
+    };
     audio.addEventListener("timeupdate", update);
     audio.addEventListener("loadedmetadata", loaded);
     audio.addEventListener("durationchange", loaded);
     audio.addEventListener("play", played);
     audio.addEventListener("pause", paused);
+    audio.addEventListener("ended", ended);
     return () => {
       audio.removeEventListener("timeupdate", update);
       audio.removeEventListener("loadedmetadata", loaded);
       audio.removeEventListener("durationchange", loaded);
       audio.removeEventListener("play", played);
       audio.removeEventListener("pause", paused);
+      audio.removeEventListener("ended", ended);
+    };
+  }, [repeatMode, goToNext]);
+
+  // Quietly preload metadata for every track (not just the loaded one) so
+  // the playlist list can show real durations without switching tracks.
+  useEffect(() => {
+    const loaders = TRACKS.map((track, index) => {
+      const probe = new Audio();
+      probe.preload = "metadata";
+      probe.src = track.src;
+      const onLoaded = () => {
+        setTrackDurations((previous) => {
+          const next = [...previous];
+          next[index] = Number.isFinite(probe.duration) ? probe.duration : 0;
+          return next;
+        });
+      };
+      probe.addEventListener("loadedmetadata", onLoaded);
+      return { probe, onLoaded };
+    });
+    return () => {
+      loaders.forEach(({ probe, onLoaded }) => {
+        probe.removeEventListener("loadedmetadata", onLoaded);
+        probe.src = "";
+      });
     };
   }, []);
+
+  // Lock-screen / notification-shade / media-key controls with the correct
+  // track title and artist, and working play, pause, previous and next.
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentTrack.title,
+      artist: "Nira Kova",
+      album: "Nira Kova",
+    });
+  }, [currentTrack.title]);
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.setActionHandler("play", () => { void togglePlayback(); });
+    navigator.mediaSession.setActionHandler("pause", () => { void togglePlayback(); });
+    navigator.mediaSession.setActionHandler("previoustrack", () => { void goToPrevious(); });
+    navigator.mediaSession.setActionHandler("nexttrack", () => { void goToNext(); });
+    return () => {
+      navigator.mediaSession.setActionHandler("play", null);
+      navigator.mediaSession.setActionHandler("pause", null);
+      navigator.mediaSession.setActionHandler("previoustrack", null);
+      navigator.mediaSession.setActionHandler("nexttrack", null);
+    };
+  }, [togglePlayback, goToPrevious, goToNext]);
+
+  useEffect(() => {
+    if ("mediaSession" in navigator) navigator.mediaSession.playbackState = playing ? "playing" : "paused";
+  }, [playing]);
 
   useEffect(() => {
     const onOrientation = (event: DeviceOrientationEvent) => {
@@ -388,9 +538,9 @@ export default function Experience() {
       updatePointer(event);
       if (started) ripplesRef.current.push({ x: event.clientX, y: event.clientY, life: 1, strength: 0.9 });
     }}>
-      {/* Music-only track; no spoken dialogue requires captions. */}
+      {/* Music-only tracks; no spoken dialogue requires captions. */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <audio id="audio" ref={audioRef} src="/track.mp3" preload="metadata" loop={repeat} crossOrigin="anonymous" aria-label="Meet Me in the Deep by Nira Kova" />
+      <audio id="audio" ref={audioRef} src={currentTrack.src} preload="metadata" loop={repeatMode === "one"} crossOrigin="anonymous" aria-label={`${currentTrack.title} by Nira Kova`} />
       <div className="wide-memory" aria-hidden="true" />
       <div className="portrait portrait-base" aria-hidden="true" />
       <div className="portrait-shade" aria-hidden="true" />
@@ -409,11 +559,11 @@ export default function Experience() {
           <span className="wm two" aria-hidden="true">Kova</span>
         </h1>
         <div className="hero-info">
-          <p className="hero-track">Meet Me in the Deep <span>— Debut single</span></p>
-          <p className="hero-line">I won&rsquo;t lose myself to hold you.</p>
+          <p className="hero-track">{currentTrack.title} <span>&mdash; {currentTrack.tagline}</span></p>
+          <p key={currentTrack.id} className="hero-line">{currentTrack.pullQuote}</p>
           <button className="enter" type="button" onClick={enter} aria-label="Tap to experience Nira Kova">
             <span className="enter-ring"><i /></span>
-            <span className="enter-copy"><b>Tap to Experience</b><small>Sound on · Headphones recommended</small></span>
+            <span className="enter-copy"><b>Tap to Experience</b><small>Sound on &middot; Headphones recommended</small></span>
           </button>
           <p className="follow">Follow for new songs &amp; the upcoming album</p>
           <nav className="social" aria-label="Nira Kova on social media">
@@ -437,8 +587,8 @@ export default function Experience() {
             </a>
           </nav>
           {started && (
-            <p key={lyricIndex} className="lyric-cycle">
-              {LYRICS[lyricIndex].map((line, index) => (
+            <p key={`${currentTrack.id}-${lyricIndex}`} className="lyric-cycle">
+              {currentTrack.lyrics[lyricIndex].map((line, index) => (
                 <span key={index}>
                   {index > 0 && <br />}
                   {line}
@@ -449,23 +599,52 @@ export default function Experience() {
         </div>
       </section>
 
-      <section className="transport" aria-label="Audio controls">
-        <button className="play-toggle" type="button" onClick={togglePlayback} aria-label={playing ? "Pause" : "Play"}><span className={playing ? "pause-icon" : "play-icon"} /></button>
-        <div className="timeline-wrap">
-          <div className="track-row"><strong>Meet Me in the Deep</strong><span>Nira Kova</span></div>
-          <canvas ref={waveformRef} className="equalizer" aria-hidden="true" />
-          <div className="time-row"><span>{formatTime(progress)}</span><span>{duration ? formatTime(duration) : "—:—"}</span></div>
-          <input className="timeline" type="range" min="0" max={duration || 1} step="0.01" value={Math.min(progress, duration || 1)} aria-label="Track position" style={{ "--played": `${(progress / Math.max(duration, 1)) * 100}%` } as CSSProperties} onChange={(event) => {
-            const next = Number(event.target.value);
-            if (audioRef.current) audioRef.current.currentTime = next;
-            setProgress(next);
-          }} />
+      <section className="transport" aria-label="Audio player">
+        <div className="transport-controls">
+          <button className="play-toggle" type="button" onClick={togglePlayback} aria-label={playing ? "Pause" : "Play"}><span className={playing ? "pause-icon" : "play-icon"} /></button>
+          <button className="skip-toggle" type="button" onClick={() => void goToNext()} aria-label={`Skip to ${TRACKS[trackIndex === TRACKS.length - 1 ? 0 : trackIndex + 1].title}`}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14l10-7z" fill="currentColor" stroke="none" /><rect x="16.5" y="5" width="2" height="14" fill="currentColor" /></svg>
+          </button>
+          <div className="timeline-wrap">
+            <div className="track-row"><strong>{currentTrack.title}</strong><span>Nira Kova</span></div>
+            <canvas ref={waveformRef} className="equalizer" aria-hidden="true" />
+            <div className="time-row"><span>{formatTime(progress)}</span><span>{duration ? formatTime(duration) : "—:—"}</span></div>
+            <input className="timeline" type="range" min="0" max={duration || 1} step="0.01" value={Math.min(progress, duration || 1)} aria-label="Track position" style={{ "--played": `${(progress / Math.max(duration, 1)) * 100}%` } as CSSProperties} onChange={(event) => {
+              const next = Number(event.target.value);
+              if (audioRef.current) audioRef.current.currentTime = next;
+              setProgress(next);
+            }} />
+          </div>
+          <button
+            className={`repeat-toggle ${repeatMode !== "off" ? "is-on" : ""}`}
+            type="button"
+            aria-pressed={repeatMode !== "off"}
+            aria-label={repeatMode === "off" ? "Enable repeat" : repeatMode === "all" ? "Repeat all is on — switch to repeat one" : "Repeat one is on — turn repeat off"}
+            onClick={cycleRepeat}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ display: repeatMode === "one" ? "none" : "block" }}><path d="M4 7h11a4 4 0 0 1 4 4v1m-3-3 3 3-3 3M20 17H9a4 4 0 0 1-4-4v-1m3 3-3-3 3-3" /></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true" style={{ display: repeatMode === "one" ? "block" : "none" }}><path d="M4 7h11a4 4 0 0 1 4 4v1m-3-3 3 3-3 3M20 17H9a4 4 0 0 1-4-4v-1m3 3-3-3 3-3" /><text x="12" y="15.3" textAnchor="middle" fontSize="8" fontWeight="800" fill="currentColor" stroke="none">1</text></svg>
+          </button>
         </div>
-        <button className={`repeat-toggle ${repeat ? "is-on" : ""}`} type="button" aria-pressed={repeat} aria-label={repeat ? "Turn repeat off" : "Turn repeat on"} onClick={() => setRepeat((prev) => !prev)}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h11a4 4 0 0 1 4 4v1m-3-3 3 3-3 3M20 17H9a4 4 0 0 1-4-4v-1m3 3-3-3 3-3" /></svg>
-        </button>
+
+        <ul className="playlist" aria-label="Playlist">
+          {TRACKS.map((track, index) => {
+            const isCurrent = index === trackIndex;
+            return (
+              <li key={track.id} className={`playlist-row ${isCurrent ? "is-current" : ""}`}>
+                <button type="button" onClick={() => void playTrackAt(index)} aria-label={`${isCurrent && playing ? "Pause" : "Play"} ${track.title}`}>
+                  <span className="playlist-index" aria-hidden="true">
+                    {isCurrent && playing ? <i className="playing-dot" /> : String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="playlist-title">{track.title}{track.isNew && <b className="playlist-new">New</b>}</span>
+                  <span className="playlist-duration">{trackDurations[index] ? formatTime(trackDurations[index]) : "—:—"}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </section>
-      <p className="mobile-hint">Drag to bend light · Tap for impact</p>
+      <p className="mobile-hint">Drag to bend light &middot; Tap for impact</p>
     </main>
   );
 }
