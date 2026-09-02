@@ -4,6 +4,8 @@ The immersive home for [nirakova.com](https://nirakova.com): a full-screen, audi
 
 The interface responds to the music in real time. Bass drives impact waves and camera pressure, mids shape the particle field, highs reveal lightning and chromatic trails, and pointer, touch, or device tilt bends the visual field.
 
+Each song has a shareable URL in the form `?song=track-id&autoplay=1`. The copy-link control creates a link for the currently selected song and requests immediate playback; browsers that require a gesture show a one-tap playback fallback.
+
 ## Run locally
 
 Requirements: Node.js 22.13 or newer.

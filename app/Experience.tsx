@@ -7,6 +7,7 @@ type Ripple = { x: number; y: number; life: number; strength: number };
 type Particle = { angle: number; radius: number; speed: number; size: number; phase: number; hue: number };
 type AudioBands = { bass: number; mids: number; highs: number };
 type RepeatMode = "off" | "all" | "one";
+type ShareStatus = "idle" | "copied" | "error";
 
 type Track = {
   id: string;
@@ -49,6 +50,13 @@ const TRACKS: Track[] = [
   },
 ];
 
+function initialTrackIndex() {
+  if (typeof window === "undefined") return 0;
+  const songId = new URLSearchParams(window.location.search).get("song");
+  const index = TRACKS.findIndex((track) => track.id === songId);
+  return index >= 0 ? index : 0;
+}
+
 function formatTime(value: number) {
   const safe = Number.isFinite(value) ? value : 0;
   return `${Math.floor(safe / 60)}:${Math.floor(safe % 60).toString().padStart(2, "0")}`;
@@ -71,16 +79,54 @@ export default function Experience() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const pointerRef = useRef({ x: 0.5, y: 0.5, active: false });
   const ripplesRef = useRef<Ripple[]>([]);
+  const linkHandledRef = useRef(false);
   const [started, setStarted] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [shareStatus, setShareStatus] = useState<ShareStatus>("idle");
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("all");
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [lyricIndex, setLyricIndex] = useState(0);
-  const [trackIndex, setTrackIndex] = useState(0);
+  const [trackIndex, setTrackIndex] = useState(initialTrackIndex);
   const [trackDurations, setTrackDurations] = useState<number[]>(() => TRACKS.map(() => 0));
 
   const currentTrack = TRACKS[trackIndex];
+
+  const updateAddressForTrack = useCallback((index: number) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("song", TRACKS[index].id);
+    url.searchParams.delete("autoplay");
+    window.history.replaceState({}, "", url);
+  }, []);
+
+  const copySongLink = useCallback(async () => {
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.hash = "";
+    url.searchParams.set("song", currentTrack.id);
+    url.searchParams.set("autoplay", "1");
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url.toString());
+      } else {
+        const field = document.createElement("textarea");
+        field.value = url.toString();
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+        const copied = document.execCommand("copy");
+        field.remove();
+        if (!copied) throw new Error("Copy unavailable");
+      }
+      setShareStatus("copied");
+    } catch {
+      setShareStatus("error");
+    }
+    window.setTimeout(() => setShareStatus("idle"), 2400);
+  }, [currentTrack.id]);
 
   const requestTiltAccess = useCallback(async () => {
     type PermissionAwareOrientation = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> };
@@ -111,6 +157,7 @@ export default function Experience() {
 
   const enter = useCallback(async () => {
     setStarted(true);
+    setAutoplayBlocked(false);
     void requestTiltAccess();
     try {
       await primeAudio();
@@ -141,6 +188,7 @@ export default function Experience() {
     }
     const audio = audioRef.current;
     setTrackIndex(index);
+    updateAddressForTrack(index);
     setLyricIndex(0);
     setStarted(true);
     void requestTiltAccess();
@@ -153,7 +201,7 @@ export default function Experience() {
     } catch {
       setPlaying(false);
     }
-  }, [trackIndex, togglePlayback, primeAudio, requestTiltAccess]);
+  }, [trackIndex, togglePlayback, primeAudio, requestTiltAccess, updateAddressForTrack]);
 
   // Advance through the queue. Wraps to the first track when repeat is set
   // to "all"; with repeat off, playback simply stops after the last track —
@@ -168,6 +216,7 @@ export default function Experience() {
     }
     const nextIndex = isLast ? 0 : trackIndex + 1;
     setTrackIndex(nextIndex);
+    updateAddressForTrack(nextIndex);
     setLyricIndex(0);
     audio.src = TRACKS[nextIndex].src;
     try {
@@ -176,7 +225,7 @@ export default function Experience() {
     } catch {
       setPlaying(false);
     }
-  }, [trackIndex, repeatMode]);
+  }, [trackIndex, repeatMode, updateAddressForTrack]);
 
   const goToPrevious = useCallback(async () => {
     const previousIndex = trackIndex === 0 ? TRACKS.length - 1 : trackIndex - 1;
@@ -190,6 +239,43 @@ export default function Experience() {
   const updatePointer = (event: ReactPointerEvent<HTMLElement>) => {
     pointerRef.current = { x: event.clientX / window.innerWidth, y: event.clientY / window.innerHeight, active: true };
   };
+
+  // A song link selects its track before playback begins. Audible autoplay is
+  // attempted, while the visible CTA remains as a one-tap fallback for browser
+  // policies that require a gesture before sound can start.
+  useEffect(() => {
+    if (linkHandledRef.current) return;
+    linkHandledRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const songId = params.get("song");
+    if (!songId) return;
+    const requestedIndex = TRACKS.findIndex((track) => track.id === songId);
+    if (requestedIndex < 0) return;
+
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.src = TRACKS[requestedIndex].src;
+    audio.load();
+
+    if (params.get("autoplay") !== "1") return;
+    const attemptAutoplay = async () => {
+      try {
+        await primeAudio();
+        await audio.play();
+        setStarted(true);
+        setAutoplayBlocked(false);
+      } catch {
+        setStarted(false);
+        setPlaying(false);
+        setAutoplayBlocked(true);
+      }
+    };
+    void attemptAutoplay();
+  }, [primeAudio]);
+
+  useEffect(() => {
+    document.title = `${currentTrack.title} — Nira Kova`;
+  }, [currentTrack.title]);
 
   // Advance the lyric line on a fixed cadence via JS rather than relying on
   // a CSS animationend event — keeps it working the same for everyone,
@@ -551,6 +637,18 @@ export default function Experience() {
 
       <header className="topbar">
         <div className="monogram" aria-label="Nira Kova">NK</div>
+        <button
+          className={`share-button share-${shareStatus}`}
+          type="button"
+          onClick={() => void copySongLink()}
+          aria-label={`Copy autoplay link for ${currentTrack.title}`}
+        >
+          <span className="copy-mark" aria-hidden="true"><i /></span>
+          <span>{shareStatus === "copied" ? "Link copied" : shareStatus === "error" ? "Copy failed" : "Copy song link"}</span>
+        </button>
+        <span className="share-announcement" role="status" aria-live="polite">
+          {shareStatus === "copied" ? `Autoplay link copied for ${currentTrack.title}` : shareStatus === "error" ? "Could not copy the link" : ""}
+        </span>
       </header>
 
       <section className="hero" aria-labelledby="artist-name">
@@ -561,9 +659,12 @@ export default function Experience() {
         <div className="hero-info">
           <p className="hero-track">{currentTrack.title} <span>&mdash; {currentTrack.tagline}</span></p>
           <p key={currentTrack.id} className="hero-line">{currentTrack.pullQuote}</p>
-          <button className="enter" type="button" onClick={enter} aria-label="Tap to experience Nira Kova">
+          <button className="enter" type="button" onClick={enter} aria-label={autoplayBlocked ? `Play shared song ${currentTrack.title}` : "Tap to experience Nira Kova"}>
             <span className="enter-ring"><i /></span>
-            <span className="enter-copy"><b>Tap to Experience</b><small>Sound on &middot; Headphones recommended</small></span>
+            <span className="enter-copy">
+              <b>{autoplayBlocked ? "Tap to play shared song" : "Tap to Experience"}</b>
+              <small>{autoplayBlocked ? currentTrack.title : <>Sound on &middot; Headphones recommended</>}</small>
+            </span>
           </button>
           <p className="follow">Follow for new songs &amp; the upcoming album</p>
           <nav className="social" aria-label="Nira Kova on social media">

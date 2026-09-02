@@ -16,6 +16,7 @@ test("builds the branded document metadata", async () => {
 test("ships the music and visual assets", async () => {
   const assets = [
     "track.mp3",
+    "never-learned-your-name.mp3",
     "nira-portrait.jpg",
     "nira-wide.jpg",
     "og.png",
@@ -38,5 +39,22 @@ test("includes the track identity in the client bundle", async () => {
   const client = bundles.join("\n");
 
   assert.match(client, /Meet Me in the Deep/);
+  assert.match(client, /Never Learned Your Name/);
   assert.match(client, /track\.mp3/);
+  assert.match(client, /never-learned-your-name\.mp3/);
+});
+
+test("includes song-specific autoplay links and copy-link controls", async () => {
+  const assetNames = await readdir(new URL("assets/", dist));
+  const scripts = assetNames.filter((name) => name.endsWith(".js"));
+  const bundles = await Promise.all(
+    scripts.map((name) => readFile(new URL(`assets/${name}`, dist), "utf8")),
+  );
+  const client = bundles.join("\n");
+
+  assert.match(client, /meet-me-in-the-deep/);
+  assert.match(client, /never-learned-your-name/);
+  assert.match(client, /autoplay/);
+  assert.match(client, /Copy song link/);
+  assert.match(client, /clipboard/);
 });

@@ -113,6 +113,25 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
 /* ============ top bar ============ */
 .topbar { position: absolute; z-index: 20; top: clamp(1.2rem,3.2vw,3rem); left: clamp(1.25rem,3.6vw,4rem); right: clamp(1.25rem,3.6vw,4rem); display: flex; justify-content: space-between; align-items: center; }
 .monogram { width: 2.8rem; height: 2.8rem; display: grid; place-items: center; border: 1px solid rgba(230,43,74,.4); font: 400 .68rem/1 "Jost",sans-serif; letter-spacing: .24em; text-indent: .24em; color: #f2d9d8; box-shadow: inset 0 0 20px rgba(223,34,66,.08),0 0 28px rgba(223,34,66,.05); }
+.share-button {
+  display: inline-flex; align-items: center; gap: .7rem;
+  min-height: 2.8rem; padding: 0 1rem;
+  border: 1px solid rgba(245,238,231,.2); border-radius: 999px;
+  background: rgba(8,6,9,.36); color: #e8dadd;
+  backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 10px 30px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04);
+  cursor: none; font: 500 .58rem/1 "Jost",sans-serif; letter-spacing: .2em; text-transform: uppercase;
+  transition: color .25s ease, border-color .25s ease, background .25s ease, box-shadow .25s ease, transform .2s ease;
+}
+.share-button:hover { color: #fff; border-color: rgba(230,43,74,.72); background: rgba(91,11,29,.3); box-shadow: 0 10px 30px rgba(0,0,0,.25), 0 0 24px rgba(230,43,74,.2); }
+.share-button:active { transform: scale(.97); }
+.share-button.share-copied { color: #fff; border-color: rgba(230,43,74,.85); background: rgba(135,16,41,.42); box-shadow: 0 0 26px rgba(230,43,74,.28); }
+.share-button.share-error { color: #f3b8c1; border-color: rgba(230,43,74,.7); }
+.copy-mark { position: relative; width: 14px; height: 14px; flex: none; }
+.copy-mark::before, .copy-mark i { content: ""; position: absolute; width: 8px; height: 9px; border: 1px solid currentColor; border-radius: 2px; }
+.copy-mark::before { left: 1px; top: 4px; opacity: .55; }
+.copy-mark i { left: 5px; top: 1px; background: rgba(8,6,9,.7); }
+.share-announcement { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
 /* ============ hero / wordmark ============ */
 .hero { position: absolute; z-index: 4; left: clamp(1.8rem,7.5vw,9rem); top: 50%; transform: translateY(-50%); max-width: min(64vw, 60rem); transition: opacity 1s ease; }
@@ -315,6 +334,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 1px solid 
   .is-started .hero-line { font-size: 1.3rem; margin-top: 1.3rem; }
   .is-started .follow { margin-top: 2.6rem; }
   .social a { cursor: pointer; }
+  .share-button { min-height: 2.65rem; padding: 0 .85rem; cursor: pointer; font-size: .54rem; letter-spacing: .14em; }
   .lyric-cycle { margin: 1.2rem 0 0 .1rem; max-width: none; font-size: 1rem; }
   .transport { width: calc(100% - 2.4rem); bottom: max(1rem,calc(env(safe-area-inset-bottom) + .5rem)); gap: .15rem; padding: .9rem 1.1rem .4rem; }
   .transport-controls { gap: .75rem; }
