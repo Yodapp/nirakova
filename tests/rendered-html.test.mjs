@@ -17,6 +17,7 @@ test("ships the music and visual assets", async () => {
   const assets = [
     "track.mp3",
     "never-learned-your-name.mp3",
+    "bad-girl-in-me.mp3",
     "nira-portrait.jpg",
     "nira-wide.jpg",
     "og.png",
@@ -42,6 +43,7 @@ test("includes the track identity in the client bundle", async () => {
   assert.match(client, /Never Learned Your Name/);
   assert.match(client, /track\.mp3/);
   assert.match(client, /never-learned-your-name\.mp3/);
+  assert.match(client, /bad-girl-in-me\.mp3/);
 });
 
 test("includes song-specific autoplay links and copy-link controls", async () => {
@@ -54,6 +56,7 @@ test("includes song-specific autoplay links and copy-link controls", async () =>
 
   assert.match(client, /meet-me-in-the-deep/);
   assert.match(client, /never-learned-your-name/);
+  assert.match(client, /bad-girl-in-me/);
   assert.match(client, /autoplay/);
   assert.match(client, /Copy song link/);
   assert.match(client, /clipboard/);

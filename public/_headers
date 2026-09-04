@@ -3,7 +3,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
-/nira-kova.mp3
+/*.mp3
   Cache-Control: public, max-age=604800
 
 /*.jpeg

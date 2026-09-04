@@ -48,6 +48,19 @@ const TRACKS: Track[] = [
     src: "/never-learned-your-name.mp3",
     isNew: true,
   },
+  {
+    id: "bad-girl-in-me",
+    title: "Bad Girl in Me",
+    tagline: "New single",
+    pullQuote: "Don’t confuse the way I want you with the way I know my worth.",
+    lyrics: [
+      ["There’s a bad girl in me", "You only see her when you stay."],
+      ["But you make the night feel dangerous", "In a way I’ve never known."],
+      ["If you want the girl beneath the surface", "You will have to let her breathe."],
+    ],
+    src: "/bad-girl-in-me.mp3",
+    isNew: true,
+  },
 ];
 
 function initialTrackIndex() {
