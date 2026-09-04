@@ -70,6 +70,11 @@ function initialTrackIndex() {
   return index >= 0 ? index : 0;
 }
 
+function isIOSDevice() {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 function formatTime(value: number) {
   const safe = Number.isFinite(value) ? value : 0;
   return `${Math.floor(safe / 60)}:${Math.floor(safe % 60).toString().padStart(2, "0")}`;
@@ -152,6 +157,10 @@ export default function Experience() {
   const primeAudio = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
+    // iOS uses a separate media process. Keeping the music in its native
+    // playback pipeline avoids a recurring WebKit crash under longer tracks;
+    // the canvas retains its lightweight ambient animation as a fallback.
+    if (isIOSDevice()) return;
     if (!audioContextRef.current) {
       const context = new AudioContext();
       const analyser = context.createAnalyser();
@@ -253,23 +262,15 @@ export default function Experience() {
     pointerRef.current = { x: event.clientX / window.innerWidth, y: event.clientY / window.innerHeight, active: true };
   };
 
-  // A song link selects its track before playback begins. Audible autoplay is
-  // attempted, while the visible CTA remains as a one-tap fallback for browser
-  // policies that require a gesture before sound can start.
+  // The selected song is resolved before render from the URL. On shared links,
+  // request playback without reassigning the media source: duplicate `load()`
+  // calls are especially costly in iOS Safari's media process.
   useEffect(() => {
     if (linkHandledRef.current) return;
     linkHandledRef.current = true;
     const params = new URLSearchParams(window.location.search);
-    const songId = params.get("song");
-    if (!songId) return;
-    const requestedIndex = TRACKS.findIndex((track) => track.id === songId);
-    if (requestedIndex < 0) return;
-
     const audio = audioRef.current;
     if (!audio) return;
-    audio.src = TRACKS[requestedIndex].src;
-    audio.load();
-
     if (params.get("autoplay") !== "1") return;
     const attemptAutoplay = async () => {
       try {
@@ -305,7 +306,15 @@ export default function Experience() {
     const audio = audioRef.current;
     if (!audio) return;
     const update = () => setProgress(audio.currentTime || 0);
-    const loaded = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
+    const loaded = () => {
+      const nextDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
+      setDuration(nextDuration);
+      setTrackDurations((previous) => {
+        const next = [...previous];
+        next[trackIndex] = nextDuration;
+        return next;
+      });
+    };
     const played = () => setPlaying(true);
     const paused = () => setPlaying(false);
     const ended = () => {
@@ -326,32 +335,7 @@ export default function Experience() {
       audio.removeEventListener("pause", paused);
       audio.removeEventListener("ended", ended);
     };
-  }, [repeatMode, goToNext]);
-
-  // Quietly preload metadata for every track (not just the loaded one) so
-  // the playlist list can show real durations without switching tracks.
-  useEffect(() => {
-    const loaders = TRACKS.map((track, index) => {
-      const probe = new Audio();
-      probe.preload = "metadata";
-      probe.src = track.src;
-      const onLoaded = () => {
-        setTrackDurations((previous) => {
-          const next = [...previous];
-          next[index] = Number.isFinite(probe.duration) ? probe.duration : 0;
-          return next;
-        });
-      };
-      probe.addEventListener("loadedmetadata", onLoaded);
-      return { probe, onLoaded };
-    });
-    return () => {
-      loaders.forEach(({ probe, onLoaded }) => {
-        probe.removeEventListener("loadedmetadata", onLoaded);
-        probe.src = "";
-      });
-    };
-  }, []);
+  }, [repeatMode, goToNext, trackIndex]);
 
   // Lock-screen / notification-shade / media-key controls with the correct
   // track title and artist, and working play, pause, previous and next.
@@ -403,7 +387,8 @@ export default function Experience() {
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const nav = navigator as Navigator & { deviceMemory?: number };
-    const lowTier = (nav.deviceMemory ?? 4) <= 2 || (nav.hardwareConcurrency ?? 8) <= 4;
+    const touchScreen = window.matchMedia("(pointer: coarse)").matches;
+    const lowTier = touchScreen || (nav.deviceMemory ?? 4) <= 2 || (nav.hardwareConcurrency ?? 8) <= 4;
     let particleLimit = reducedMotion ? 30 : lowTier ? 72 : window.innerWidth > 1600 ? 180 : 128;
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -421,6 +406,7 @@ export default function Experience() {
     let lastHighFlash = 0;
     const barCount = 22;
     const barLevels = new Float32Array(barCount);
+    const analyserData = new Uint8Array(256);
 
     const particles: Particle[] = Array.from({ length: 190 }, (_, index) => ({
       angle: (index / 190) * Math.PI * 2 + Math.random() * 0.2,
@@ -501,16 +487,15 @@ export default function Experience() {
       const analyser = analyserRef.current;
       const audio = audioRef.current;
       if (!analyser || !audio || audio.paused) return { bands: { bass: 0.025, mids: 0.018, highs: 0.012 }, frequencyData: null };
-      const frequencyData = new Uint8Array(analyser.frequencyBinCount);
-      analyser.getByteFrequencyData(frequencyData);
+      analyser.getByteFrequencyData(analyserData);
       const sampleRate = audioContextRef.current?.sampleRate ?? 48000;
       return {
         bands: {
-          bass: averageFrequencyRange(frequencyData, sampleRate, analyser.fftSize, 20, 150),
-          mids: averageFrequencyRange(frequencyData, sampleRate, analyser.fftSize, 150, 2000),
-          highs: averageFrequencyRange(frequencyData, sampleRate, analyser.fftSize, 2000, 16000),
+          bass: averageFrequencyRange(analyserData, sampleRate, analyser.fftSize, 20, 150),
+          mids: averageFrequencyRange(analyserData, sampleRate, analyser.fftSize, 150, 2000),
+          highs: averageFrequencyRange(analyserData, sampleRate, analyser.fftSize, 2000, 16000),
         },
-        frequencyData,
+        frequencyData: analyserData,
       };
     };
 
@@ -563,7 +548,7 @@ export default function Experience() {
       root.setProperty("--lightning", lightning.toFixed(3));
       root.setProperty("--pointer-x", `${(pointer.x * 100).toFixed(2)}%`);
       root.setProperty("--pointer-y", `${(pointer.y * 100).toFixed(2)}%`);
-      if (!window.matchMedia("(pointer: coarse)").matches) {
+      if (!touchScreen) {
         root.setProperty("--tilt-x", `${((pointer.y - 0.5) * -4.5).toFixed(2)}deg`);
         root.setProperty("--tilt-y", `${((pointer.x - 0.5) * 6).toFixed(2)}deg`);
       }
@@ -639,7 +624,7 @@ export default function Experience() {
     }}>
       {/* Music-only tracks; no spoken dialogue requires captions. */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <audio id="audio" ref={audioRef} src={currentTrack.src} preload="metadata" loop={repeatMode === "one"} crossOrigin="anonymous" aria-label={`${currentTrack.title} by Nira Kova`} />
+      <audio id="audio" ref={audioRef} src={currentTrack.src} preload="none" loop={repeatMode === "one"} aria-label={`${currentTrack.title} by Nira Kova`} />
       <div className="wide-memory" aria-hidden="true" />
       <div className="portrait portrait-base" aria-hidden="true" />
       <div className="portrait-shade" aria-hidden="true" />

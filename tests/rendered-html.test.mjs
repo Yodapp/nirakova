@@ -61,3 +61,13 @@ test("includes song-specific autoplay links and copy-link controls", async () =>
   assert.match(client, /Copy song link/);
   assert.match(client, /clipboard/);
 });
+
+test("keeps the iOS shared-song path lightweight", async () => {
+  const source = await readFile(new URL("app/Experience.tsx", root), "utf8");
+
+  assert.match(source, /preload="none"/);
+  assert.doesNotMatch(source, /const probe = new Audio\(\)/);
+  assert.match(source, /const touchScreen = window\.matchMedia\("\(pointer: coarse\)"\)\.matches/);
+  assert.match(source, /function isIOSDevice\(\)/);
+  assert.match(source, /if \(isIOSDevice\(\)\) return;/);
+});
